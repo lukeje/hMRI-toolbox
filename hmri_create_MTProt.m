@@ -663,7 +663,6 @@ for p = 1:dm(3)
         end
         
         tmp      = A;
-        tmp(isinf(tmp)) = 0;
         tmp(isnan(tmp)) = 0;
         Nmap(mpm_params.qPD).dat(:,:,p) = max(min(tmp,threshall.A),-threshall.A);
         % dynamic range increased to 10^5 to accommodate phased-array coils and symmetrical for noise distribution
@@ -788,15 +787,15 @@ if (mpm_params.QA.enable||(PDproc.calibr)) && (PDwidx && T1widx)
     
     % The 5 outer voxels in all directions are nulled in order to remove
     % artefactual effects from the MT map on segmentation: 
-    MTtemp(1:5,:,:)=0; MTtemp(end-5:end,:,:)=0;
-    MTtemp(:,1:5,:)=0; MTtemp(:,end-5:end,:)=0;
-    MTtemp(:,:,1:5)=0; MTtemp(:,:,end-5:end)=0;
+    MTtemp(1:5,:,:)=0; MTtemp(end-5:end,:,:)=nan;
+    MTtemp(:,1:5,:)=0; MTtemp(:,end-5:end,:)=nan;
+    MTtemp(:,:,1:5)=0; MTtemp(:,:,end-5:end)=nan;
     
     % Null very bright and negative voxels
-    MTtemp(abs(MTtemp)==threshMT)=0;
-    MTtemp(isinf(MTtemp))=0;
-    MTtemp(isnan(MTtemp))=0;
-    MTtemp(MTtemp<0)=0;
+    MTtemp(abs(MTtemp)==threshMT)=nan;
+    MTtemp(isinf(MTtemp))=nan;
+    MTtemp(isnan(MTtemp))=nan;
+    MTtemp(MTtemp<0)=nan;
     
     Vsave.fname = spm_file(Vsave.fname,'suffix','_outer_suppressed');
     spm_write_vol(Vsave,MTtemp);
@@ -974,6 +973,10 @@ function PDcalculation(fA, fTPM, mpm_params)
 % fTMP is the list of TPMs generated from MT map
 hmri_log(sprintf('\t-------- Proton density map calculation --------'), mpm_params.nopuflags);
 
+% save copy of A map before bias correction
+fA_uncorr = spm_file(fA,'suffix','star');
+copyfile(fA,fA_uncorr);
+
 PDproc = mpm_params.proc.PD;
 threshA = mpm_params.proc.threshall.A;
 calcpath = mpm_params.calcpath;
@@ -988,10 +991,10 @@ WMmask(squeeze(TPMs(:,:,:,2))>=PDproc.WMMaskTh) = 1;
 V_maskedA = spm_vol(fA);
 V_maskedA.fname = fullfile(calcpath,['masked_' spm_str_manip(V_maskedA.fname,'t')]);
 maskedA = spm_read_vols(spm_vol(fA)).*WBmask;
-maskedA(isinf(maskedA)) = 0;
-maskedA(isnan(maskedA)) = 0;
-maskedA(maskedA==threshA) = 0;
-maskedA(maskedA<0) = 0;
+maskedA(isinf(maskedA)) = nan;
+maskedA(isnan(maskedA)) = nan;
+maskedA(maskedA==threshA) = nan;
+maskedA(maskedA<0) = nan;
 spm_write_vol(V_maskedA,maskedA);
 
 % Bias-field correction of masked A map
@@ -1001,8 +1004,14 @@ job_bfcorr.channel.vols = {V_maskedA.fname};
 job_bfcorr.channel.biasreg = PDproc.biasreg;
 job_bfcorr.channel.biasfwhm = PDproc.biasfwhm;
 job_bfcorr.channel.write = [1 0]; % need the BiasField, obviously!
+% only write c* volumes if specifically requested by user
+if ~PDproc.saveseg
+    segmask = [0 0]; % do not write c* volumes
+else
+    segmask = [1 0]; % write c* volumes
+end
 for ctis=1:length(job_bfcorr.tissue)
-    job_bfcorr.tissue(ctis).native = [0 0]; % no need to write c* volumes
+    job_bfcorr.tissue(ctis).native = segmask;
 end
 output_list = spm_preproc_run(job_bfcorr);
 
