@@ -19,8 +19,8 @@ D       = [1];       % [um^2/ms]
 % Build structure "diff" to account for diffusion effect
 assert(length(Gamp)==length(Gdur))
 for gIdx=1:length(Gamp)
-    assert(length(Gdur{Gidx})==length(Gamp{Gidx}),'The vectors of gradient durations and amplitudes must have the same length!')
-    diff(Gidx) = struct('D', D*1e-9, 'G', Gamp{Gidx}, 'tau', Gdur{Gidx});
+    assert(length(Gdur{gIdx})==length(Gamp{gIdx}),'The vectors of gradient durations and amplitudes must have the same length!')
+    diff(gIdx) = struct('D', D*1e-9, 'G', Gamp{gIdx}, 'tau', Gdur{gIdx});
 end
 
 assert(length(Gamp)==length(TR),'Each TR must have an associated set of gradients')
@@ -45,7 +45,7 @@ for T1idx = 1:nT1 % loop over T1 values, can use parfor for speed
             B1eff = B1range(B1idx);
             
             % make train of flip angles and their phases
-            alpha_train = repmat(deg2rad(FA*B1eff), 1, npulse); % flip angles
+            alpha_train = repmat(deg2rad(FA*B1eff), 1, npulse/length(FA)); % flip angles
             phi_train   = RF_phase_cycle(npulse,Phi0);          % phases
             
             % Calculate signals via EPG

@@ -92,9 +92,9 @@ S = sparse(S);
 ntr = length(TR);
 ES = cell(ntr,1);
 b  = cell(ntr,1);
-for tridx=1:nTR
-    E1 = exp(-TR(idx)/T1);
-    E2 = exp(-TR(idx)/T2);
+for tridx=1:ntr
+    E1 = exp(-TR(tridx)/T1);
+    E2 = exp(-TR(tridx)/T2);
     E = diag([E2 E2 E1]);
 
     %%% regrowth
