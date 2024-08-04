@@ -1,26 +1,32 @@
 function hmri_corr_afi()
 
-%% Numerical simulations with EPG
+%% Input parameters
 % Get sequence parameters
 FA      = [60, 60];        % Flip angles [deg]
 TR      = [50, 150];       % [ms]
 Phi0    = 137;             % [deg]
-B1range = (30:10:130)/100; % convert such that 100% = 1
-Gdur{1} = [5];             % [ms]
+B1range = (30:10:130)'/100; % convert such that 100% = 1
+Gdur{1} = [5];             %#ok<*NBRAK2> % [ms]
 Gamp{1} = [40];            % [mT/m]
 Gdur{2} = [50];            % [ms]
 Gamp{2} = [40];            % [mT/m]
 
 % Get tissue parameters
-T1range = [700];     % [ms]
+T1range = fliplr([500 700 1000 1500 3000]);     % [ms]
 T2range = [50];      % [ms]
-D       = [1];       % [um^2/ms]
+D       = [0.7];     % [um^2/ms]
 
+% Max signal will be scaled to this value and rounded before calculation
+% Set to inf to disable discretisation of signal
+% Typically WM has largest signal values because of fast relaxation
+maxS_WM = 2^8;
+
+%% Numerical simulations with EPG
 % Build structure "diff" to account for diffusion effect
 assert(length(Gamp)==length(Gdur))
 for gIdx=1:length(Gamp)
     assert(length(Gdur{gIdx})==length(Gamp{gIdx}),'The vectors of gradient durations and amplitudes must have the same length!')
-    diff(gIdx) = struct('D', D*1e-9, 'G', Gamp{gIdx}, 'tau', Gdur{gIdx});
+    diff(gIdx) = struct('D', D*1e-9, 'G', Gamp{gIdx}, 'tau', Gdur{gIdx}); %#ok<AGROW>
 end
 
 assert(length(Gamp)==length(TR),'Each TR must have an associated set of gradients')
@@ -57,10 +63,20 @@ for T1idx = 1:nT1 % loop over T1 values, can use parfor for speed
     end
 end
 
+%% Account for discretisation error during DICOM conversion
+if isfinite(maxS_WM)
+    sc = maxS_WM/max([S1(:);S2(:)]);
+    S1 = round(S1*sc);
+    S2 = round(S2*sc);
+end
+
 %% Calculate relative B1 map
 B1app = calc_AFI(S1,S2,TR(1),TR(2),FA(1));
 
-histogram(B1app-B1range)
+plot(100*B1range,100*(B1app-B1range))
+legend("T1 = "+T1range+" ms",'Location',"Best")
+xlabel("B1 (p.u.)")
+ylabel("B1est - B1 (p.u.)")
 
 end
 
