@@ -3,16 +3,16 @@ function hmri_corr_afi()
 %% Input parameters
 % Get sequence parameters
 FA      = [60, 60];        % Flip angles [deg]
-TR      = [50, 150];       % [ms]
+TR      = [20, 100];       % [ms]
 Phi0    = 137;             % [deg]
-B1range = (30:10:130)'/100; % convert such that 100% = 1
+B1range = (30:10:160)'/100; % convert such that 100% = 1
 Gdur{1} = [5];             %#ok<*NBRAK2> % [ms]
 Gamp{1} = [40];            % [mT/m]
 Gdur{2} = [50];            % [ms]
 Gamp{2} = [40];            % [mT/m]
 
 % Get tissue parameters
-T1range = fliplr([500 700 1000 1500 3000]);     % [ms]
+T1range = fliplr([1000, 1220, 1500, 3000]);     % [ms]
 T2range = [50];      % [ms]
 D       = [0.7];     % [um^2/ms]
 
@@ -26,8 +26,9 @@ maxS_WM = 2^8;
 assert(length(Gamp)==length(Gdur))
 for gIdx=1:length(Gamp)
     assert(length(Gdur{gIdx})==length(Gamp{gIdx}),'The vectors of gradient durations and amplitudes must have the same length!')
-    diff(gIdx) = struct('D', D*1e-9, 'G', Gamp{gIdx}, 'tau', Gdur{gIdx}); %#ok<AGROW>
 end
+diff = struct('D', D*1e-9, 'G', Gamp, 'tau', Gdur); % struct assigns cell elements to separate struct array elements
+
 
 assert(length(Gamp)==length(TR),'Each TR must have an associated set of gradients')
 assert(FA(1)==FA(2),'AFI equation assumes both flip angles are equal')
@@ -63,20 +64,32 @@ for T1idx = 1:nT1 % loop over T1 values, can use parfor for speed
     end
 end
 
+
+%% Simulate using exact result assuming perfect spoiling
+S1e = abs(hmri_test_utils.dualTRernstd(B1range*FA(1),TR(1),TR(2),1./T1range));
+S2e = abs(hmri_test_utils.dualTRernstd(B1range*FA(1),TR(2),TR(1),1./T1range));
+
 %% Account for discretisation error during DICOM conversion
 if isfinite(maxS_WM)
     sc = maxS_WM/max([S1(:);S2(:)]);
     S1 = round(S1*sc);
     S2 = round(S2*sc);
+
+    S1e = round(S1e*sc);
+    S2e = round(S2e*sc);
 end
 
 %% Calculate relative B1 map
-B1app = calc_AFI(S1,S2,TR(1),TR(2),FA(1));
+B1app_grsp   = calc_AFI(S1, S2, TR(1),TR(2),FA(1));
+B1app_compsp = calc_AFI(S1e,S2e,TR(1),TR(2),FA(1));
 
-plot(100*B1range,100*(B1app-B1range))
-legend("T1 = "+T1range+" ms",'Location',"Best")
+plot(100*B1range,100*(B1app_grsp-B1range),'-x')
+hold on
+plot(100*B1range,100*(B1app_compsp-B1range),'-o')
+legend("T1 = "+T1range(:)+" ms"+[" grad only", " perfect"],'Location',"Best")
 xlabel("B1 (p.u.)")
 ylabel("B1est - B1 (p.u.)")
+hold off
 
 end
 
