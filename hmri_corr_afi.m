@@ -112,23 +112,24 @@ B1map = FAmap/nomFA;
 
 end
 
-function phi = NehrkePhaseCycle(npulse,phi0,TRs)
-    phi = zeros(1,npulse);
-    phi0 = deg2rad(phi0);
-    inorder = issorted(TRs);
-    increment = 0;
-    phase = 0;
-    for n = 2:npulse
-        if mod(n+inorder,2)
-  		  % long TR acquisition
-          increment = increment + phi0;
-        else
-          % short TR acquisition requires less phase increment
-          increment = increment + phi0*TRs(mod(inorder+1,2)+1)/TRs(inorder+1);
-        end
-    	  phase		= phase + increment ;
-    	  phase     = mod(phase, 2*pi);
-    	  increment = mod(increment, 2*pi);
-          phi(n) = phase;
-    end
+% Attempt at implementing AFI phase cycling scheme from
+%   Nehrke, K. (2009), On the steady-state properties of actual flip angle imaging (AFI). 
+%   Magn. Reson. Med., 61: 84-92. https://doi.org/10.1002/mrm.21592
+function phi = NehrkePhaseCycle(npulse,phi0,TR)
+
+% Different phase increments for short and long TR
+phi0 = deg2rad(phi0);
+if issorted(TR)
+    phi0r = [phi0*TR(1)/TR(2), phi0];
+else
+    phi0r = [phi0, phi0*TR(2)/TR(1)];
+end
+
+phi = zeros(1,npulse);
+increment = 0;
+for n = 2:npulse
+    increment = increment + phi0r(mod(n-1,2)+1);
+    phi(n)    = phi(n-1) + increment;
+end
+
 end
