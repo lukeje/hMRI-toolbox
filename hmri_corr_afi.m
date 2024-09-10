@@ -4,12 +4,14 @@ function hmri_corr_afi()
 % Get sequence parameters
 FA      = [60, 60];        % Flip angles [deg]
 TR      = [20, 100];       % [ms]
-Phi0    = 137;             % [deg]
-B1range = (30:10:160)'/100; % convert such that 100% = 1
-Gdur{1} = [5];             %#ok<*NBRAK2> % [ms]
-Gamp{1} = [40];            % [mT/m]
-Gdur{2} = [50];            % [ms]
-Gamp{2} = [40];            % [mT/m]
+Phi0    = 36.0;            % [deg]
+B1range = (5:10:160)'/100; % convert such that 100% = 1
+dur1 = 11; % ms
+Gdur{1} = [1,dur1/4,dur1/2,dur1/4]; %#ok<*NBRAK2> % [ms]
+Gamp{1} = [26,30,-30,30];           % [mT/m]
+dur2 = 55; % ms
+Gdur{2} = [3,dur2/4,dur2/2,dur2/4]; % [ms]
+Gamp{2} = [26,30,-30,30];           % [mT/m]
 
 % Get tissue parameters
 T1range = fliplr([1000, 1220, 1500, 3000]);     % [ms]
@@ -19,7 +21,7 @@ D       = [0.7];     % [um^2/ms]
 % Max signal will be scaled to this value and rounded before calculation
 % Set to inf to disable discretisation of signal
 % Typically WM has largest signal values because of fast relaxation
-maxS_WM = 2^8;
+maxS_WM = inf; 2^8;
 
 %% Numerical simulations with EPG
 % Build structure "diff" to account for diffusion effect
@@ -28,7 +30,6 @@ for gIdx=1:length(Gamp)
     assert(length(Gdur{gIdx})==length(Gamp{gIdx}),'The vectors of gradient durations and amplitudes must have the same length!')
 end
 diff = struct('D', D*1e-9, 'G', Gamp, 'tau', Gdur); % struct assigns cell elements to separate struct array elements
-
 
 assert(length(Gamp)==length(TR),'Each TR must have an associated set of gradients')
 assert(FA(1)==FA(2),'AFI equation assumes both flip angles are equal')
@@ -53,7 +54,8 @@ for T1idx = 1:nT1 % loop over T1 values, can use parfor for speed
             
             % make train of flip angles and their phases
             alpha_train = repmat(deg2rad(FA*B1eff), 1, npulse/length(FA)); % flip angles
-            phi_train   = RF_phase_cycle(npulse,Phi0);          % phases
+            %phi_train   = RF_phase_cycle(npulse,Phi0);          % phases
+            phi_train   = NehrkePhaseCycle(npulse,Phi0,TR);          % phases
             
             % Calculate signals via EPG
             F0 = EPG_GRE_nTR(alpha_train, phi_train, TR, T1, T2, 'diff', diff);
@@ -83,10 +85,15 @@ end
 B1app_grsp   = calc_AFI(S1, S2, TR(1),TR(2),FA(1));
 B1app_compsp = calc_AFI(S1e,S2e,TR(1),TR(2),FA(1));
 
+p = polyfit(100*mean(B1app_grsp,2),100*B1range,3);
+disp(sprintf("%.7f ",p)) %#ok<DSPSP>
+B1app_corr = polyval(p,100*B1app_grsp)/100;
+
 plot(100*B1range,100*(B1app_grsp-B1range),'-x')
 hold on
 plot(100*B1range,100*(B1app_compsp-B1range),'-o')
-legend("T1 = "+T1range(:)+" ms"+[" grad only", " perfect"],'Location',"Best")
+plot(100*B1range,100*(B1app_corr-B1range),'-s')
+legend("T1 = "+T1range(:)+" ms"+[" grad only", " perfect", " corrected"],'Location',"Best")
 xlabel("B1 (p.u.)")
 ylabel("B1est - B1 (p.u.)")
 hold off
@@ -103,4 +110,25 @@ FAmap = acosd((r*n-1)./(n-r)); % Eq. (6) in Yarnykh, MRM (2007)
 % relative B1 map
 B1map = FAmap/nomFA;
 
+end
+
+function phi = NehrkePhaseCycle(npulse,phi0,TRs)
+    phi = zeros(1,npulse);
+    phi0 = deg2rad(phi0);
+    inorder = issorted(TRs);
+    increment = 0;
+    phase = 0;
+    for n = 2:npulse
+        if mod(n+inorder,2)
+  		  % long TR acquisition
+          increment = increment + phi0;
+        else
+          % short TR acquisition requires less phase increment
+          increment = increment + phi0*TRs(mod(inorder+1,2)+1)/TRs(inorder+1);
+        end
+    	  phase		= phase + increment ;
+    	  phase     = mod(phase, 2*pi);
+    	  increment = mod(increment, 2*pi);
+          phi(n) = phase;
+    end
 end
