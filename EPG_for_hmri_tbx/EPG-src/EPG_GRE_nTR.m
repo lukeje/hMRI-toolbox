@@ -20,8 +20,8 @@ function [F0,Fn,Zn,F] = EPG_GRE_nTR(theta,phi,TR,T1,T2,varargin)
 %                           Setting kmax=inf ensures ALL pathways are
 %                           computed
 %               diff:       structure with fields:
-%                           G    - Gradient amplitude(s)
-%                           tau  - Gradient durations(s)
+%                           G    - Gradient amplitude(s) mT/m
+%                           tau  - Gradient durations(s) ms
 %                           D    - Diffusion coeff m^2/s (i.e. expect 10^-9)
 %
 %   Outputs:                
@@ -37,7 +37,6 @@ function [F0,Fn,Zn,F] = EPG_GRE_nTR(theta,phi,TR,T1,T2,varargin)
 
 
 %% Extra variables
-
 for ii=1:length(varargin)
     
     % Kmax = this is the maximum EPG 'order' to consider
@@ -53,43 +52,69 @@ for ii=1:length(varargin)
     
 end
 
-%%% The maximum order varies through the sequence. This can be used to speed up the calculation    
+% Different TRs might have different amounts of spoiling, which affects how
+% far we need to move in k-space   
 np = length(theta);
+ntr = length(TR);
+nShifts = ones(1,ntr); % default to implicitly having the same amount of spoiling every TR
+if exist('diff','var')
+    G0 = zeros(ntr,1);
+    for tridx=1:ntr
+        G0(tridx) = dot(diff(tridx).G(:),diff(tridx).tau(:));
+    end
+
+    % implementing this for now assuming that gradient moments are all zero or an integer 
+    % multiple of the smallest moment
+    nShifts(G0~=0) = G0(G0~=0)/min(G0(G0~=0));
+    assert(all(mod(nShifts,1)==0), 'gradient moments per TR are not all integer multiples of the shortest non-zero moment')
+
+    kall = sum(repmat(nShifts,1,np/ntr));
+else
+    kall = np - 1;
+end
+
+%%% The maximum order varies through the sequence. This can be used to speed up the calculation 
 % if not defined, assume want max
 if ~exist('kmax','var')
-    kmax = np - 1;
+    kmax = kall;
 end
 
 if isinf(kmax)
     % this flags that we don't want any pruning of pathways
     allpathways = true;
-    kmax = np-1; 
+    kmax = kall; 
 else
     allpathways = false;
 end
 
 %%% Variable pathways
 if allpathways
-    kmax_per_pulse = (0:kmax) + 1; %<-- +1 because (0:kmax) is correct after each RF pulse, but we must increase order by one to also deal with subsequent shift
+    kmax_per_pulse = cumsum(repmat(nShifts,1,np/ntr)); %<-- +1 because (0:kmax) is correct after each RF pulse, but we must increase order by one to also deal with subsequent shift
     kmax_per_pulse(kmax_per_pulse>kmax)=kmax; %<-- don't exceed kmax, we break after last RF pulse
 else
+    error('not implemented')
+    %{
     kmax_per_pulse = [1:ceil(np/2) (floor(np/2)):-1:1];
     kmax_per_pulse(kmax_per_pulse>kmax)=kmax;
      
     if max(kmax_per_pulse)<kmax
         kmax = max(kmax_per_pulse);
     end
+    %}
 end
 
 %%% Number of states is 6x(kmax +1) -- +1 for the zero order
 N=3*(kmax+1);
 
 %%% Build Shift matrix, S
-S = EPG_shift_matrices(kmax);
-S = sparse(S);
+S0 = sparse(EPG_shift_matrices(kmax));
+S = cell(ntr,1);
+for tridx=1:ntr
+    S{ntr} = S0^nShifts(ntr);
+end
+
 
 %% Set up matrices for Relaxation
-ntr = length(TR);
 ES = cell(ntr,1);
 b  = cell(ntr,1);
 for tridx=1:ntr
@@ -110,7 +135,7 @@ for tridx=1:ntr
     end
         
     %%% Composite relax-shift
-    ES{tridx}=sparse(E*S);
+    ES{tridx}=sparse(E*S{ntr});
 end
 
 %%% Pre-allocate RF matrix
