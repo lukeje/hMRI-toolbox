@@ -1,5 +1,5 @@
-function [bDL, bDT] = EPG_diffusion_weights(G,tau,D,Nvals)
-%   function [bDL bDT] = EPG_diffusion_weights(G,tau,D,Nvals)
+function [bDL, bDT] = EPG_diffusion_weights(G,tau,D,Nvals,dk)
+%   function [bDL bDT] = EPG_diffusion_weights(G,tau,D,Nvals,dk)
 %       
 %   Computes array of diffusion weighting values exp(-bD)
 %   Inputs:
@@ -7,6 +7,8 @@ function [bDL, bDT] = EPG_diffusion_weights(G,tau,D,Nvals)
 %       - tau = duration of gradients ms - same length as G
 %       - diffusion coefficient - m^2 / s (i.e. order of 10^-9 expected)
 %       - Nvals = array of integers for EPG orders that need to be computed
+%       - dk - total dephasing between neighbouring EPG states; leave blank
+%              to compute automatically assuming gradient moment matches
 %
 %   Outputs:
 %       - bDL/bDT are arrays of exp(-bD) for each value of N specified, or
@@ -19,7 +21,10 @@ gmT = 42.58e6 * 1e-3 * 2*pi; % rad s^-1 mT^-1
 tau = tau(:)*1e-3; % convert to sec
 dur = sum(tau); % total duration of dephasing period to consider
 G = G(:)';
-dk = gmT*G*tau; %<--- dk is total dephasing between two EPG states
+
+if ~exist('dk','var') || isempty(dk)
+    dk = gmT*G*tau; %<--- dk is total dephasing between two EPG states
+end
 
 %%% Define helper functions
 bLong = @(n)((n*dk).^2*dur);

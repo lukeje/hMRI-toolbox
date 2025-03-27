@@ -1,4 +1,4 @@
-function E = E_diff(E,diff,kmax,N)
+function E = E_diff(E,diff,kmax,N,dk)
 % E = E_diff(E,diff,kmax,N)
 %
 %    Function to build E operator with diffusion effects for standard EPG
@@ -12,7 +12,11 @@ function E = E_diff(E,diff,kmax,N)
 %
 % Shaihan Malik July 2017
 
-[bDL, bDT] = EPG_diffusion_weights(diff.G,diff.tau,diff.D,0:kmax);
+if ~exist('dk','var')
+    dk = [];
+end
+
+[bDL, bDT] = EPG_diffusion_weights(diff.G,diff.tau,diff.D,0:kmax,dk);
 
 % E is a simple diagonal matrix - just need to compute this diagonal
 Ed = diag(E);

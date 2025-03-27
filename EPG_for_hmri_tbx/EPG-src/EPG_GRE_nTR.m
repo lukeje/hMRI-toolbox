@@ -57,8 +57,16 @@ end
 np = length(theta);
 ntr = length(TR);
 if exist('diff','var')
+    % fill out TRs to ensure b-values computed correctly
+    for tridx=1:ntr
+        dur = sum(diff(tridx).tau);
+        assert(dur<=TR(tridx),'diffusion gradients cannot be on for longer than TR!')
+        diff(tridx).tau(end+1) = TR(tridx) - dur;
+        diff(tridx).G(end+1) = 0;
+    end
+
     % compute gradient moment for each TR
-    G0 = zeros(ntr,1);
+    G0 = zeros(1,ntr);
     for tridx=1:ntr
         G0(tridx) = dot(diff(tridx).G(:),diff(tridx).tau(:));
     end
@@ -68,11 +76,16 @@ if exist('diff','var')
     nShifts(G0~=0) = G0(G0~=0)/min(G0(G0~=0));
     assert(all(mod(nShifts,1)==0), 'gradient moments per TR are not all integer multiples of the shortest non-zero moment')
 
+    % the total dephasing between two EPG states
+    gmT = 42.58e6 * 1e-3 * 2*pi; % rad s^-1 mT^-1
+    dk = gmT*min(abs(G0(G0~=0)))*1e-3;
+
     kall = sum(repmat(nShifts,1,np/ntr));
 else
     % default to implicitly having the same amount of spoiling every TR
     nShifts = ones(1,ntr);
     kall = np - 1;
+    dk = [];
 end
 
 %%% The maximum order varies through the sequence. This can be used to speed up the calculation 
@@ -105,7 +118,7 @@ else
     %}
 end
 
-%%% Number of states is 6x(kmax +1) -- +1 for the zero order
+%%% Number of states is 3x(kmax +1) -- +1 for the zero order
 N=3*(kmax+1);
 
 %%% Build Shift matrix, S
@@ -130,14 +143,16 @@ for tridx=1:ntr
 
     %%% Add in diffusion at this point 
     if exist('diff','var')
-        E = E_diff(E,diff(tridx),kmax,N);
+        E = E_diff(E,diff(tridx),kmax,N,dk);
     else
         % If no diffusion, E is the same for all EPG orders
         E = spdiags(repmat([E2 E2 E1],[1 kmax+1])',0,N,N);
     end
         
     %%% Composite relax-shift
-    ES{tridx}=sparse(E*S{tridx});
+    % diffusion comes before shift operator as current phase state was used
+    % to determine initial k in E_diff
+    ES{tridx}=sparse(S{tridx}*E);
 end
 
 %%% Pre-allocate RF matrix

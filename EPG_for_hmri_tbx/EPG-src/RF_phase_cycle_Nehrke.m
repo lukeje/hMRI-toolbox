@@ -12,15 +12,15 @@ end
 % Different phase increments for even and odd TR
 % Original paper assumes zero-based indexing, so here [1,3,5,...] are "even"
 % and [2,4,6,...] are "odd"
-phi_n = phi0*(N1+N2)/2;
 scale_oddeven = [N1, N2];
-const_oddeven = scale_oddeven.*(phi0*(1-N2)/2 + offset);
+phi_oddeven = scale_oddeven*phi0*(N1+N2)/2;
+const_oddeven = scale_oddeven*(phi0*(1-N2)/2 + offset);
 
 increments = [0,0];
 phi = zeros(npulse,1);
 for k=2:npulse
     % both increments needs to end up scaled by current k, so update them both
-    increments = wrapTo2Pi(increments + phi_n*scale_oddeven);
+    increments = wrapTo2Pi(increments + phi_oddeven);
 
     oddevenidx = mod(k,2)+1;
     phi(k) = wrapTo2Pi(phi(k-1) + increments(oddevenidx) + const_oddeven(oddevenidx));
