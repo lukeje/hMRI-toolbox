@@ -45,7 +45,7 @@ end
     % from above. See Weigel review paper 2015 (JMRI).
     function bT = bfactors(N)
         
-        k0 = N.*dk; %<--- initial k-space is the order of the state * dk
+        k0 = N*dk; %<--- initial k-space is the order of the state * dk
         %%% for each segment we need the initial k-value ki and final value kf
         %%% initialize with ki=k0.
         ki = k0;
