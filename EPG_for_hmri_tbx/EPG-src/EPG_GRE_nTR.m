@@ -22,7 +22,7 @@ function [F0,Fn,Zn,F] = EPG_GRE_nTR(theta,phi,TR,T1,T2,varargin)
 %               diff:       structure with fields:
 %                           G    - Gradient amplitude(s) mT/m
 %                           tau  - Gradient durations(s) ms
-%                           D    - Diffusion coeff m^2/s (i.e. expect 10^-9)
+%                           D    - Diffusion coeff       m^2/s (i.e. expect 10^-9)
 %
 %   Outputs:                
 %               F0:         signal (F0 state) directly after each
@@ -39,7 +39,7 @@ function [F0,Fn,Zn,F] = EPG_GRE_nTR(theta,phi,TR,T1,T2,varargin)
 %% Extra variables
 for ii=1:length(varargin)
     
-    % Kmax = this is the maximum EPG 'order' to consider
+    % kmax = this is the maximum EPG 'order' to consider
     % If this is infinity then don't do any pruning
     if strcmpi(varargin{ii},'kmax')
         kmax = varargin{ii+1};
@@ -63,8 +63,7 @@ if exist('diff','var')
         G0(tridx) = dot(diff(tridx).G(:),diff(tridx).tau(:));
     end
 
-    % implementing this for now assuming that gradient moments are all zero or an integer 
-    % multiple of the smallest moment
+    % assume that gradient moments are all zero or an integer multiple of the smallest moment
     nShifts(G0~=0) = G0(G0~=0)/min(G0(G0~=0));
     assert(all(mod(nShifts,1)==0), 'gradient moments per TR are not all integer multiples of the shortest non-zero moment')
 
@@ -110,7 +109,7 @@ N=3*(kmax+1);
 S0 = sparse(EPG_shift_matrices(kmax));
 S = cell(ntr,1);
 for tridx=1:ntr
-    S{ntr} = S0^nShifts(ntr);
+    S{tridx} = S0^nShifts(tridx);
 end
 
 
@@ -135,7 +134,7 @@ for tridx=1:ntr
     end
         
     %%% Composite relax-shift
-    ES{tridx}=sparse(E*S{ntr});
+    ES{tridx}=sparse(E*S{tridx});
 end
 
 %%% Pre-allocate RF matrix

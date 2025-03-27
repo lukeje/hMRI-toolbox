@@ -22,8 +22,8 @@ for k=2:npulse
     % both increments needs to end up scaled by current k, so update them both
     increments = wrapTo2Pi(increments + phi_n*scale_oddeven);
 
-    oddeven = mod(k,2)+1;
-    phi(k) = wrapTo2Pi(phi(k-1) + increments(oddeven) + const_oddeven(oddeven));
+    oddevenidx = mod(k,2)+1;
+    phi(k) = wrapTo2Pi(phi(k-1) + increments(oddevenidx) + const_oddeven(oddevenidx));
 end
 
 end
