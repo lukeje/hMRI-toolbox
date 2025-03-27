@@ -56,19 +56,22 @@ end
 % far we need to move in k-space   
 np = length(theta);
 ntr = length(TR);
-nShifts = ones(1,ntr); % default to implicitly having the same amount of spoiling every TR
 if exist('diff','var')
+    % compute gradient moment for each TR
     G0 = zeros(ntr,1);
     for tridx=1:ntr
         G0(tridx) = dot(diff(tridx).G(:),diff(tridx).tau(:));
     end
 
     % assume that gradient moments are all zero or an integer multiple of the smallest moment
+    nShifts = zeros(1,ntr);
     nShifts(G0~=0) = G0(G0~=0)/min(G0(G0~=0));
     assert(all(mod(nShifts,1)==0), 'gradient moments per TR are not all integer multiples of the shortest non-zero moment')
 
     kall = sum(repmat(nShifts,1,np/ntr));
 else
+    % default to implicitly having the same amount of spoiling every TR
+    nShifts = ones(1,ntr);
     kall = np - 1;
 end
 
