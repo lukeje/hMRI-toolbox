@@ -2,13 +2,13 @@ function hmri_corr_afi()
 
 %% Input parameters
 % Get sequence and tissue parameters
-protocol = "PVPphantom";
+protocol = "ADPCA";
 switch protocol
     case "ADPCA"
         FA      = [60, 60];        % Flip angles [deg]
         TR      = [20, 100];       % [ms]
-        Phi0    = 36.0;            % [deg]
-        B1range = (5:10:160)'/100; % convert such that 100% = 1
+        Phi0    = 36.0/3;            % [deg]
+        B1range = (20:10:150)'/100; % convert such that 100% = 1
         dur1 = 11; % ms
         Gdur{1} = [1,dur1/4,dur1/2,dur1/4]; %#ok<*NBRAK2> % [ms]
         Gamp{1} = [26,30,-30,30];           % [mT/m]

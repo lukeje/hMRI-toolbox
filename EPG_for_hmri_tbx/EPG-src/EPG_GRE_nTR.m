@@ -150,9 +150,7 @@ for tridx=1:ntr
     end
         
     %%% Composite relax-shift
-    % diffusion comes before shift operator as current phase state was used
-    % to determine initial k in E_diff
-    ES{tridx}=sparse(S{tridx}*E);
+    ES{tridx}=sparse(E*S{tridx});
 end
 
 %%% Pre-allocate RF matrix
