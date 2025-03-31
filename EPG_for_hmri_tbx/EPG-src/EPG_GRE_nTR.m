@@ -130,7 +130,7 @@ end
 
 
 %% Set up matrices for Relaxation
-ES = cell(ntr,1);
+SE = cell(ntr,1);
 b  = cell(ntr,1);
 for tridx=1:ntr
     E1 = exp(-TR(tridx)/T1);
@@ -150,7 +150,7 @@ for tridx=1:ntr
     end
         
     %%% Composite relax-shift
-    ES{tridx}=sparse(E*S{tridx});
+    SE{tridx}=sparse(S{tridx}*E);
 end
 
 %%% Pre-allocate RF matrix
@@ -195,7 +195,7 @@ for jj=1:np
     
     %%% Now deal with evolution
     tridx = mod(jj-1,ntr)+1;
-    FF(kidx) = ES{tridx}(kidx,kidx)*F(kidx,jj)+b{tridx}(kidx);
+    FF(kidx) = SE{tridx}(kidx,kidx)*F(kidx,jj)+b{tridx}(kidx);
     
     % Deal with complex conjugate after shift
     FF(1)=conj(FF(1)); %<---- F0 comes from F-1 so conjugate 
