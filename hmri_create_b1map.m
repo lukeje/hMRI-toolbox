@@ -77,7 +77,7 @@ switch(b1map_params.b1type)
         P_trans  = calc_scaled_b1map(jobsubj, b1map_params, offset, scaling, descrip);
 
     case 'pre_processed_B1'
-        P_trans  = calc_scaled_b1map(jobsubj, b1map_params, b1map_params.offset, b1map_params.scafac, sprintf('Pre-processed B1 map rescaled with factor %f', b1map_params.scafac));
+        P_trans  = calc_scaled_b1map(jobsubj, b1map_params, b1map_params.offset, b1map_params.scafac, sprintf('Pre-processed B1 map rescaled with factor %f and offset %f', b1map_params.scafac, b1map_params.offset));
 
     otherwise
         hmri_log(sprintf('WARNING: unknown B1 type, no B1 map calculation performed.'),b1map_params.defflags);
@@ -690,11 +690,12 @@ switch b1_protocol
 
     case 'pre_processed_B1'
         b1map_params.scafac = jobsubj.b1_type.(b1_protocol).scafac;
+        b1map_params.offset = jobsubj.b1_type.(b1_protocol).offset;
         if ~isempty(b1map_params.b1input)
-            if b1map_params.scafac == 1
+            if b1map_params.scafac == 1 && b1map_params.offset == 0
                 hmri_log(sprintf('Preprocessed B1 map available. \nAssuming it is in percent units of the nominal flip angle. \nNo calculation required.'),b1map_params.defflags);
             else
-                hmri_log(sprintf('Preprocessed B1 map available. \nScaling factor provided: %f. Assuming B1 map will be expressed \nin p.u. of the nominal flip angle after rescaling.', b1map_params.scafac),b1map_params.defflags);
+                hmri_log(sprintf('Preprocessed B1 map available. \nNon unity scaling factor (%f) or nonzero offset (%f) provided. Assuming B1 map will be expressed \nin p.u. of the nominal flip angle after rescaling.', b1map_params.scafac, b1map_params.offset),b1map_params.defflags);
             end
         end
 
