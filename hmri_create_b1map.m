@@ -70,7 +70,7 @@ switch(b1map_params.b1type)
         % the formula (abs(Vol1)-2048)*180/2048 would result in an absolute FA map
         alphanom = get_metadata_val(P,'FlipAngle');
         scaling = 180*100/(alphanom*2048); % *100/alpha to get p.u.
-        offset = -2048;
+        offset = -2048*scaling;
 
         descrip = 'SIEMENS rf_map protocol';
 
@@ -566,7 +566,7 @@ try copyfile([spm_str_manip(V2.fname,'r') '.json'],[spm_str_manip(anat_fname,'r'
 V2 = spm_vol(anat_fname);
 
 % generating the map
-B1map_norm = (abs(Vol1)+offset)*scaling;
+B1map_norm = Vol1*scaling + offset;
 
 % masking; mask is written out to folder of the anatomical image
 % (this should be outpath due to copying the anatomical file above)
