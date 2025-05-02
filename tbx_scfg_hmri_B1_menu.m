@@ -104,6 +104,17 @@ scafac.strtype = 'r';
 scafac.num     = [1 1];
 scafac.val     = {1};
 
+% ---------------------------------------------------------------------
+% pre-calculated B1 map - including potential offset
+% ---------------------------------------------------------------------
+offset         = cfg_entry;
+offset.tag     = 'offset';
+offset.name    = 'Offset';
+offset.help    = {'This value will be added to the the input B1 map before scaling by the scaling factor.'};
+offset.strtype = 'r';
+offset.num     = [1 1];
+offset.val     = {0};
+
 b1_input_preproc      = cfg_branch;
 b1_input_preproc.tag  = 'pre_processed_B1';
 b1_input_preproc.name = 'pre-processed B1';
@@ -114,7 +125,7 @@ b1_input_preproc.help = {'Input pre-calculated B1 bias map.'
     ['The B1 map is expected to be in ' ...
     'percent units (p.u.) of the nominal flip angle. If this is not the case, ' ...
     'a scaling factor can be introduced (see Scaling factor description for more details).']};
-b1_input_preproc.val  = {b1raw scafac b1parameters};
+b1_input_preproc.val  = {b1raw scafac offset b1parameters};
 
 
 % ---------------------------------------------------------------------

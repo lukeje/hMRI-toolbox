@@ -77,7 +77,7 @@ switch(b1map_params.b1type)
         P_trans  = calc_scaled_b1map(jobsubj, b1map_params, offset, scaling, descrip);
 
     case 'pre_processed_B1'
-        P_trans  = calc_scaled_b1map(jobsubj, b1map_params, 0, b1map_params.scafac, sprintf('Pre-processed B1 map rescaled with factor %f', b1map_params.scafac));
+        P_trans  = calc_scaled_b1map(jobsubj, b1map_params, b1map_params.offset, b1map_params.scafac, sprintf('Pre-processed B1 map rescaled with factor %f', b1map_params.scafac));
 
     otherwise
         hmri_log(sprintf('WARNING: unknown B1 type, no B1 map calculation performed.'),b1map_params.defflags);
