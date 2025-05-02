@@ -215,6 +215,7 @@ kvals = -kmax:kmax;
 
 %%% Now reorder
 Fn = F(idx,:);
+
 %%% Conjugate
 Fn(kvals<0,:)=conj(Fn(kvals<0,:));
 

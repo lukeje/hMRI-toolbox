@@ -8,6 +8,7 @@ phi0 = deg2rad(phi0);
 if ~exist('offset','var')
     offset = 0;
 end
+offset = deg2rad(offset);
 
 % Different phase increments for even and odd TR
 % Original paper assumes zero-based indexing, so here [1,3,5,...] are "even"
