@@ -2,7 +2,8 @@ function hmri_corr_afi()
 
 %% Input parameters
 % Get sequence and tissue parameters
-protocol = "ADPCA";
+protocol = "KRK";
+
 switch protocol
     case "ADPCA"
         FA      = [60, 60];        % Flip angles [deg]
@@ -24,14 +25,33 @@ switch protocol
 
         phase_cycle = @(npulse,phi0,TR1,TR2) RF_phase_cycle_NehrkeSimplifiedError(npulse,phi0*TR1/TR2,TR1,TR2);
         
+    case "KRK"
+        FA      = [55,  55]; % Flip angles [deg]
+        TR      = [25, 125]; % [ms]
+        Phi0    = 36;        % [deg]
+        B1range = (30:5:140)'/100; % convert such that 100% = 1
+        dur1 = 7.2; % ms
+        Gdur{1} = [1,dur1/4,dur1/2,dur1/4]; % [ms]
+        Gamp{1} = [26,26,-26,26];           % [mT/m]
+        dur2 = 36;  % ms
+        Gdur{2} = [3,dur2/4,dur2/2,dur2/4]; % [ms]
+        Gamp{2} = [26,26,-26,26];           % [mT/m]
+        
+        % Get tissue parameters
+        T1range = [1000,1200,3000]; % [ms]
+        T2range = 50;      % [ms]
+        D       = 0.7;     % [µm^2/ms]
+
+        phase_cycle = @(npulse,phi0,TR1,TR2) RF_phase_cycle_NehrkeSimplifiedError(npulse,phi0*TR1/TR2,TR1,TR2);
+        
     case "PVPphantom"
         n = 3;
         FA      = [60, 60]; % Flip angles [deg]
         TR      = [1,n]*50; % [ms]
         Phi0    = 129.3;    % [deg]
         B1range = (50:5:150)'/100; % convert such that 100% = 1
-        dur2 = 42; % ms
-        Gdur{1} = [1,dur2/4,dur2/2,dur2/4]; % [ms]
+        dur1 = 42; % ms
+        Gdur{1} = [1,dur1/4,dur1/2,dur1/4]; % [ms]
         Gamp{1} = [26,26,-26,26];           % [mT/m]
         dur2 = 42; % ms
         Gdur{2} = [n,dur2/4,dur2/2,dur2/4]; % [ms]
@@ -96,7 +116,7 @@ S2e = abs(hmri_test_utils.dualTRernstd(B1range*FA(1),TR(2),TR(1),1./T1range));
 B1app_grsp   = calc_AFI(S1, S2, TR(1),TR(2),FA(1));
 B1app_compsp = calc_AFI(S1e,S2e,TR(1),TR(2),FA(1));
 
-p = polyfit(100*B1app_grsp,100*B1range,1);
+p = polyfit(100*mean(B1app_grsp,2),100*B1range,2);
 disp(sprintf("%.7f ",p)) %#ok<DSPSP>
 B1app_corr = polyval(p,100*B1app_grsp)/100;
 
