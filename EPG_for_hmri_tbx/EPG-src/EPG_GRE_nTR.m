@@ -111,7 +111,8 @@ if allpathways
     kmax_per_pulse(kmax_per_pulse>kmax)=kmax; % don't exceed kmax as we break after last RF pulse
 else
     % reduce the number of required states by using the fact that states must be refocused
-    kmax_per_pulse = min(cumsum(allshifts),cumsum(allshifts,'reverse'));
+    % last shift is zero as we break after last pulse
+    kmax_per_pulse = min(cumsum(allshifts),cumsum([allshifts(1:end-1),0],'reverse'));
     kmax_per_pulse(kmax_per_pulse>kmax)=kmax;
      
     if max(kmax_per_pulse)<kmax

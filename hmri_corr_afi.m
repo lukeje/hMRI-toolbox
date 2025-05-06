@@ -2,7 +2,7 @@ function hmri_corr_afi()
 
 %% Input parameters
 % Get sequence and tissue parameters
-protocol = "KRK";
+protocol = "ADPCA";
 
 switch protocol
     case "ADPCA"
@@ -19,7 +19,7 @@ switch protocol
         Gamp{2} = [26,30,-30,30];           % [mT/m]
         
         % Get tissue parameters
-        T1range = 1200; %fliplr([1000, 1220, 1500, 3000]);     % [ms]
+        T1range = [1000, 1220, 1500, 3000];     % [ms]
         T2range = 50;      % [ms]
         D       = 0.7;     % [µm^2/ms]
 
@@ -99,7 +99,7 @@ for T1idx = 1:nT1 % loop over T1 values, can use parfor for speed
             phi_train   = phase_cycle(npulse,Phi0,TR(1),TR(2));            % phases
             
             % Calculate signals via EPG
-            F0 = EPG_GRE_nTR(alpha_train, phi_train, TR, T1, T2, 'diff',Gdiff, 'kmax',inf);
+            F0 = EPG_GRE_nTR(alpha_train, phi_train, TR, T1, T2, 'diff',Gdiff);
             S1(B1idx,T1idx,T2idx) = abs(F0(end-1));
             S2(B1idx,T1idx,T2idx) = abs(F0(end));
             
