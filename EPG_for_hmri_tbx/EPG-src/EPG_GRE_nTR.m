@@ -72,18 +72,19 @@ if exist('diff','var')
     end
 
     % assume that gradient moments are all zero or an integer multiple of the smallest moment
-    nShifts = zeros(1,ntr);
-    nShifts(G0~=0) = G0(G0~=0)/min(G0(G0~=0));
-    assert(all(mod(nShifts,1)==0), 'gradient moments per TR are not all integer multiples of the shortest non-zero moment')
+    nshifts = zeros(1,ntr);
+    nshifts(G0~=0) = G0(G0~=0)/min(G0(G0~=0));
+    assert(all(mod(nshifts,1)==0), 'gradient moments per TR are not all integer multiples of the shortest non-zero moment')
 
     % the total dephasing between two EPG states
     gmT = 42.58e6 * 1e-3 * 2*pi; % rad s^-1 mT^-1
     dk = gmT*min(abs(G0(G0~=0)))*1e-3;
 
-    kall = sum(repmat(nShifts,1,np/ntr));
+    kall = computekall(np,nshifts);
+
 else
     % default to implicitly having the same amount of spoiling every TR
-    nShifts = ones(1,ntr);
+    nshifts = ones(1,ntr);
     kall = np - 1;
     dk = [];
 end
@@ -103,19 +104,19 @@ else
 end
 
 %%% Variable pathways
+allshifts = repmat(nshifts,1,ceil(np/ntr)); % all shifts if we always complete the cycle
+allshifts = allshifts(1:np); % all the real shifts
 if allpathways
-    kmax_per_pulse = cumsum(repmat(nShifts,1,np/ntr)); %<-- +1 because (0:kmax) is correct after each RF pulse, but we must increase order by one to also deal with subsequent shift
-    kmax_per_pulse(kmax_per_pulse>kmax)=kmax; %<-- don't exceed kmax, we break after last RF pulse
+    kmax_per_pulse = cumsum(allshifts); % current max state plus subsequent shift
+    kmax_per_pulse(kmax_per_pulse>kmax)=kmax; % don't exceed kmax as we break after last RF pulse
 else
-    error('not implemented')
-    %{
-    kmax_per_pulse = [1:ceil(np/2) (floor(np/2)):-1:1];
+    % reduce the number of required states by using the fact that states must be refocused
+    kmax_per_pulse = min(cumsum(allshifts),cumsum(allshifts,'reverse'));
     kmax_per_pulse(kmax_per_pulse>kmax)=kmax;
      
     if max(kmax_per_pulse)<kmax
         kmax = max(kmax_per_pulse);
     end
-    %}
 end
 
 %%% Number of states is 3x(kmax +1) -- +1 for the zero order
@@ -125,7 +126,7 @@ N=3*(kmax+1);
 S0 = sparse(EPG_shift_matrices(kmax));
 S = cell(ntr,1);
 for tridx=1:ntr
-    S{tridx} = S0^nShifts(tridx);
+    S{tridx} = S0^nshifts(tridx);
 end
 
 
@@ -244,5 +245,22 @@ Zn = F(3:3:end,:);
             T(i1(i2):ksft:end)=AA(i2);
         end
     end
+
+end
+
+function kall = computekall(np,shifts)
+
+ntr = length(shifts);
+
+% shifts from complete repetitions of TR cycle
+nfull = floor(np/ntr);
+kall = sum(shifts)*nfull;
+
+% additional shifts from left-over TRs
+kall = kall + sum(shifts(1:(np-ntr*nfull)));
+
+% remove last shift as we break after last pulse
+[ishiftend,~] = ind2sub([ntr,ceil(np/ntr)],np);
+kall = kall - shifts(ishiftend);
 
 end
