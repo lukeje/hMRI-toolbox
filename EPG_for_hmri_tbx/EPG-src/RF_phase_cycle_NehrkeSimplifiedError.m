@@ -5,20 +5,18 @@
 % Simplified by choosing offset so that constant phase offsets in each TR are zero
 % This implementation intentionally contains an error in order to fit correction 
 % factors for data collected with this scheme rather than the intended scheme
-function phi = RF_phase_cycle_NehrkeSimplifiedError(npulse,phi0,N1,N2)
+function phi = RF_phase_cycle_NehrkeSimplifiedError(npulse,phi0,scale_firsttr_secondtr)
 
 phi0 = deg2rad(phi0);
 
-% Different phase increments for even and odd TR
-% Original paper assumes zero-based indexing, so here [1,3,5,...] are "even"
-% and [2,4,6,...] are "odd"
-scale_oddeven = [1, N2/N1];
-
-increment = phi0*scale_oddeven(2);
+% initialise return vector
 phi = zeros(npulse,1);
+
+% different phase increments for every other TR
+increment = mod(phi0*scale_firsttr_secondtr(1), 20*pi);
 phi(1) = increment;
 for k=2:npulse
-    increment = mod(increment + phi0*scale_oddeven(mod(k,2)+1), 20*pi);
+    increment = mod(increment + phi0*scale_firsttr_secondtr(mod(k-1,2)+1), 20*pi);
 
     phi(k) = mod(phi(k-1) + increment, 20*pi);
 end

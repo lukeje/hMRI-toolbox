@@ -2,14 +2,32 @@ function hmri_corr_afi()
 
 %% Input parameters
 % Get sequence and tissue parameters
-protocol = "ADPCA";
+protocol = "KRK";
 
 switch protocol
+    case "Lutti"
+        FA      = [60, 60];        % Flip angles [deg]
+        TR      = [100, 20];       % [ms]
+        Phi0    = 36.0;            % [deg]
+        B1range = (30:10:130)'/100; % convert such that 100% = 1
+
+        Gdur{1} = 55; % [ms]
+        Gamp{1} = 26; % [mT/m]
+        Gdur{2} = 11; % [ms]
+        Gamp{2} = 26; % [mT/m]
+        
+        % Get tissue parameters
+        T1range = [1000, 1220, 3000]; % [ms]
+        T2range = 50;  % [ms]
+        D       = 0.7; % [µm^2/ms]
+
+        phase_cycle = @(npulse,phi0,TR1,TR2) RF_phase_cycle(npulse,phi0);
+        
     case "ADPCA"
         FA      = [60, 60];        % Flip angles [deg]
         TR      = [100, 20];       % [ms]
         Phi0    = 36.0;            % [deg]
-        B1range = (20:10:150)'/100; % convert such that 100% = 1
+        B1range = (30:10:130)'/100; % convert such that 100% = 1
 
         dur1 = 55; % ms
         Gdur{1} = [3,dur1/4,dur1/2,dur1/4]; % [ms]
@@ -19,11 +37,9 @@ switch protocol
         Gamp{2} = [26,30,-30,30];           % [mT/m]
         
         % Get tissue parameters
-        T1range = [1000, 1220, 1500, 3000];     % [ms]
-        T2range = 50;      % [ms]
-        D       = 0.7;     % [µm^2/ms]
+        [T1range,T2range,D] = tissueparams("invivo7T");
 
-        phase_cycle = @(npulse,phi0,TR1,TR2) RF_phase_cycle_NehrkeSimplifiedError(npulse,phi0*TR1/TR2,TR1,TR2);
+        phase_cycle = @(npulse,phi0,TR1,TR2) RF_phase_cycle_NehrkeSimplifiedError(npulse,phi0,[1,TR2/TR1]);
         
     case "KRK"
         FA      = [55,  55]; % Flip angles [deg]
@@ -38,11 +54,9 @@ switch protocol
         Gamp{2} = [26,26,-26,26];           % [mT/m]
         
         % Get tissue parameters
-        T1range = [1000,1200,3000]; % [ms]
-        T2range = 50;      % [ms]
-        D       = 0.7;     % [µm^2/ms]
+        [T1range,T2range,D] = tissueparams("invivo7T");
 
-        phase_cycle = @(npulse,phi0,TR1,TR2) RF_phase_cycle_NehrkeSimplifiedError(npulse,phi0*TR1/TR2,TR1,TR2);
+        phase_cycle = @(npulse,phi0,TR1,TR2) RF_phase_cycle_NehrkeSimplifiedError(npulse,phi0,[TR1/TR2,1]);
         
     case "PVPphantom"
         n = 3;
@@ -58,11 +72,9 @@ switch protocol
         Gamp{2} = [26,26,-26,26];           % [mT/m]
         
         % Get tissue parameters
-        T1range = 1000;     % [ms]
-        T2range = 196;      % [ms]
-        D       = 0.6;     % [µm^2/ms]
+        [T1range,T2range,D] = tissueparams("PVPphantom3T");
 
-        phase_cycle = @(npulse,phi0,TR1,TR2) RF_phase_cycle_NehrkeSimplifiedError(npulse,phi0*TR1/TR2,TR1,TR2);
+        phase_cycle = @(npulse,phi0,TR1,TR2) RF_phase_cycle_NehrkeSimplifiedError(npulse,phi0,[TR1/TR2,1]);
 end
 
 %% Numerical simulations with EPG
@@ -116,7 +128,7 @@ S2e = abs(hmri_test_utils.dualTRernstd(B1range*FA(1),TR(2),TR(1),1./T1range));
 B1app_grsp   = calc_AFI(S1, S2, TR(1),TR(2),FA(1));
 B1app_compsp = calc_AFI(S1e,S2e,TR(1),TR(2),FA(1));
 
-p = polyfit(100*mean(B1app_grsp,2),100*B1range,2);
+p = polyfit(100*mean(B1app_grsp,2),100*B1range,3);
 disp(sprintf("%.7f ",p)) %#ok<DSPSP>
 B1app_corr = polyval(p,100*B1app_grsp)/100;
 
@@ -137,7 +149,7 @@ plot(100*B1range,100*(B1app_grsp-B1range),'-x')
 hold on
 plot(100*B1range,100*(B1app_compsp-B1range),'-o')
 plot(100*B1range,100*(B1app_corr-B1range),'-s')
-legend("T1 = "+T1range(:)+" ms"+[" grad only", " perfect", " corrected"],'Location',"Best")
+%legend("T1 = "+T1range(:)+" ms"+[" grad only", " perfect", " corrected"],'Location',"Best")
 xlabel("B1 (p.u.)")
 ylabel("B1est - B1 (p.u.)")
 hold off
@@ -153,5 +165,22 @@ FAmap = acosd((r*n-1)./(n-r)); % Eq. (6) in Yarnykh, MRM (2007)
 
 % relative B1 map
 B1map = FAmap/nomFA;
+
+end
+
+function [T1,T2,D] = tissueparams(tissuetype)
+
+switch tissuetype
+    case "invivo7T"
+        T1 = [1000,1200,3000]; % [ms]
+        T2 = 50;               % [ms]
+        D  = 0.7;              % [µm^2/ms]
+    case "PVPphantom3T"
+        T1 = 1000; % [ms]
+        T2 = 196;  % [ms]
+        D  = 0.6;  % [µm^2/ms]
+    otherwise
+        error("unrecognised tissue type %s", tissuetype)
+end
 
 end
