@@ -1,7 +1,8 @@
 function [F0,Fn,Zn,F] = EPG_GRE_nTR(theta,phi,TR,T1,T2,varargin)
-%   [F0,Fn,Zn,F] = EPG_GRE(theta,phi,TR,T1,T2,varargin)
+%   [F0,Fn,Zn,F] = EPG_GRE_nTR(theta,phi,TR,T1,T2,varargin)
 %
-%   Single pool EPG (classic version) for gradient echo sequences
+%   Single pool EPG (classic version) for gradient echo sequences with
+%   different interleaved TRs
 %
 %   arguments:
 %               theta:      vector of flip angles (rad) - length = #pulses
@@ -71,23 +72,26 @@ if exist('diff','var')
         G0(tridx) = dot(diff(tridx).G(:),diff(tridx).tau(:));
     end
 
-    % assume that gradient moments are all zero or an integer multiple of the smallest moment
+    % confirm that gradient moments are all zero or an integer multiple of the smallest moment
     nshifts = zeros(1,ntr);
-    nshifts(G0~=0) = G0(G0~=0)/min(G0(G0~=0));
+    deltaG0 = min(abs(G0));
+    nshifts(G0~=0) = G0(G0~=0)/deltaG0; % only divide when non-zero because could be that deltaG0 = 0 (no spoiling case)
     assert(all(mod(nshifts,1)==0), 'gradient moments per TR are not all integer multiples of the shortest non-zero moment')
 
-    % the total dephasing between two EPG states
+    % total dephasing between two EPG states
     gmT = 42.58e6 * 1e-3 * 2*pi; % rad s^-1 mT^-1
-    dk = gmT*min(abs(G0(G0~=0)))*1e-3;
-
-    kall = computekall(np,nshifts);
+    dk = gmT*deltaG0*1e-3;
 
 else
     % default to implicitly having the same amount of spoiling every TR
     nshifts = ones(1,ntr);
-    kall = np - 1;
     dk = [];
 end
+
+% maximum k which can be reached in the simulation
+allshifts = repmat(nshifts,1,ceil(np/ntr)); % all shifts if we always complete the cycle
+allshifts = allshifts(1:np);   % all the shifts actually performed
+kall = sum(allshifts(1:np-1)); % ignore last shift as we break after last pulse
 
 %%% The maximum order varies through the sequence. This can be used to speed up the calculation 
 % if not defined, assume want max
@@ -104,8 +108,6 @@ else
 end
 
 %%% Variable pathways
-allshifts = repmat(nshifts,1,ceil(np/ntr)); % all shifts if we always complete the cycle
-allshifts = allshifts(1:np); % all the real shifts
 if allpathways
     kmax_per_pulse = cumsum(allshifts); % current max state plus subsequent shift
     kmax_per_pulse(kmax_per_pulse>kmax)=kmax; % don't exceed kmax as we break after last RF pulse
@@ -246,22 +248,5 @@ Zn = F(3:3:end,:);
             T(i1(i2):ksft:end)=AA(i2);
         end
     end
-
-end
-
-function kall = computekall(np,shifts)
-
-ntr = length(shifts);
-
-% shifts from complete repetitions of TR cycle
-nfull = floor(np/ntr);
-kall = sum(shifts)*nfull;
-
-% additional shifts from left-over TRs
-kall = kall + sum(shifts(1:(np-ntr*nfull)));
-
-% remove last shift as we break after last pulse
-[ishiftend,~] = ind2sub([ntr,ceil(np/ntr)],np);
-kall = kall - shifts(ishiftend);
 
 end
