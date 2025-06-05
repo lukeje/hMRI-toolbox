@@ -62,8 +62,8 @@ if exist('diff','var')
     for tridx=1:ntr
         dur = sum(diff(tridx).tau);
         assert(dur<=TR(tridx),'diffusion gradients cannot be on for longer than TR!')
-        diff(tridx).tau(end+1) = TR(tridx) - dur;
-        diff(tridx).G(end+1) = 0;
+        diff(tridx).tau = [diff(tridx).tau(:); TR(tridx) - dur];
+        diff(tridx).G   = [diff(tridx).G(:);   0];
     end
 
     % compute gradient moment for each TR
@@ -77,6 +77,7 @@ if exist('diff','var')
     deltaG0 = min(abs(G0));
     nshifts(G0~=0) = G0(G0~=0)/deltaG0; % only divide when non-zero because could be that deltaG0 = 0 (no spoiling case)
     assert(all(mod(nshifts,1)==0), 'gradient moments per TR are not all integer multiples of the shortest non-zero moment')
+    assert(all(nshifts>=0), 'negative gradient moments not implemented')
 
     % total dephasing between two EPG states
     gmT = 42.58e6 * 1e-3 * 2*pi; % rad s^-1 mT^-1
@@ -202,7 +203,8 @@ for jj=1:np
     FF(kidx) = SE{tridx}(kidx,kidx)*F(kidx,jj)+b{tridx}(kidx);
     
     % Deal with complex conjugate after shift
-    FF(1)=conj(FF(1)); %<---- F0 comes from F-1 so conjugate 
+    shiftedidx = 1:3:(3*nshifts(tridx));
+    FF(shiftedidx) = conj(FF(shiftedidx)); %<---- F0, etc. comes from F-n so conjugate 
 end
 
 
