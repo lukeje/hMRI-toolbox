@@ -32,7 +32,7 @@ switch protocol
         Gamp{1} = [26,30,-30,30];           % [mT/m]
         dur2 = 11; % ms
         Gdur{2} = [1,dur2/4,dur2/2,dur2/4]; % [ms]
-        Gamp{2} = [26,30,-30,30];           % [mT/m]
+        Gamp{2} = Gamp{1};           % [mT/m]
 
         % Get tissue parameters
         [T1range,T2range,D] = tissueparams("invivo7T");
@@ -48,10 +48,10 @@ switch protocol
         B1range = (30:5:140)'/100; % convert such that 100% = 1
         dur1 = 7.2; % ms
         Gdur{1} = [1,dur1/4,dur1/2,dur1/4]; % [ms]
-        Gamp{1} = [26,26,-26,26];           % [mT/m]
+        Gamp{1} = [26,30,-30,30];           % [mT/m]
         dur2 = 36;  % ms
         Gdur{2} = [3,dur2/4,dur2/2,dur2/4]; % [ms]
-        Gamp{2} = [26,26,-26,26];           % [mT/m]
+        Gamp{2} = Gamp{1};           % [mT/m]
 
         % Get tissue parameters
         [T1range,T2range,D] = tissueparams("invivo7T");
@@ -68,10 +68,10 @@ switch protocol
         
         dur1 = 7.2; % ms
         Gdur{1} = [1,dur1/4,dur1/2,dur1/4]; % [ms]
-        Gamp{1} = [26,26,-26,26];           % [mT/m]
+        Gamp{1} = [26,30,-30,30];           % [mT/m]
         dur2 = 36;  % ms
         Gdur{2} = [3,dur2/4,dur2/2,dur2/4]; % [ms]
-        Gamp{2} = [26,26,-26,26];           % [mT/m]
+        Gamp{2} = Gamp{1};           % [mT/m]
 
         % Get tissue parameters
         [T1range,T2range,D] = tissueparams("postmortem7T");
