@@ -43,8 +43,7 @@ switch protocol
         FA      = [55,  55]; % Flip angles [deg]
         TR      = [25, 125]; % [ms]
 
-        phis = linspace(5,180,100);        % [deg]
-        %phis    = 36;        % [deg]
+        phis    = 36;        % [deg]
 
         B1range = (30:5:140)'/100; % convert such that 100% = 1
         dur1 = 7.2; % ms
@@ -63,7 +62,6 @@ switch protocol
         FA      = [55,  55]; % Flip angles [deg]
         TR      = [25, 125]; % [ms]
         
-        phis = 150;49;47.5;
         phis = linspace(5,180,100);        % [deg]
         
         B1range = (30:5:140)'/100; % convert such that 100% = 1
@@ -85,10 +83,9 @@ switch protocol
         FA      = [60, 60]; % Flip angles [deg]
         TR      = [1,n]*50; % [ms]
 
-        %phis    = 129.3;    % [deg]
-        phis = linspace(5,180,100);        % [deg]
+        phis    = 50;    % [deg]
 
-        B1range = (50:5:150)'/100; % convert such that 100% = 1
+        B1range = (50:5:120)'/100; % convert such that 100% = 1
         dur1 = 42; % ms
         Gdur{1} = [1,dur1/4,dur1/2,dur1/4]; % [ms]
         Gamp{1} = [26,26,-26,26];           % [mT/m]
@@ -161,18 +158,11 @@ for idx = 1:length(phis)
 
     if isscalar(phis)
 
-        %p = polyfit(100*mean(B1app_grsp,2),100*B1range,5); mu = [0,1];
-
-        [p,~,mu] = polyfit(100*mean(B1app_grsp,2),100*B1range,7);
+        p = polyfit(100*mean(B1app_grsp,2),100*B1range,2);
         
-        B1app_corr = polyval(p,100*B1app_grsp,[],mu)/100;
+        B1app_corr = polyval(p,100*B1app_grsp)/100;
         formattedDisplayText(p,"NumericFormat","long")
-        formattedDisplayText(mu,"NumericFormat","long")
         
-        %p = spline(100*mean(B1app_grsp,2),100*B1range);
-        %B1app_corr = ppval(p,100*B1app_grsp)/100;
-        %disp(p)
-
         figure
 
         subplot(2,1,1)
@@ -230,9 +220,9 @@ switch tissuetype
         T2 = 30;               % [ms]
         D  = 0.2;              % [µm^2/ms]
     case "PVPphantom3T"
-        T1 = 1000; % [ms]
-        T2 = 196;  % [ms]
-        D  = 0.6;  % [µm^2/ms]
+        T1 = 775; % [ms]
+        T2 = 250;  % [ms]
+        D  = 0.8;  % [µm^2/ms]
     otherwise
         error("unrecognised tissue type %s", tissuetype)
 end
