@@ -123,8 +123,7 @@ for idx = 1:length(phis)
     for T1idx = 1:nT1 % loop over T1 values, can use parfor for speed
 
         T1 = T1range(T1idx);
-        npulse = floor(5*T1/min(TR));    % ensure steady state signal
-        npulse = npulse + mod(npulse,2); % ensure number of pulses even
+        npulse = 2*ceil(6*T1/sum(TR)); % ensure steady state signal
 
         for T2idx = 1:nT2
             T2 = T2range(T2idx);
