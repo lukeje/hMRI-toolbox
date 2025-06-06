@@ -34,7 +34,7 @@ function [F0,Fn,Zn,F] = EPG_GRE_nTR(theta,phi,TR,T1,T2,varargin)
 %                           [F0 F0* Z0 F1 F-1* Z1 F2 F-2* Z2 ...] etc
 %
 %
-%   Shaihan Malik 2017-07-20
+%   Adapted from Shaihan Malik's EPG_GRE.m by Luke J. Edwards
 
 
 %% Extra variables
@@ -59,11 +59,12 @@ np = length(theta);
 ntr = length(TR);
 if exist('diff','var')
     % fill out TRs to ensure b-values computed correctly
+    % assume gradients are spoilers played out at the end of the TR
     for tridx=1:ntr
         dur = sum(diff(tridx).tau);
         assert(dur<=TR(tridx),'diffusion gradients cannot be on for longer than TR!')
-        diff(tridx).tau = [diff(tridx).tau(:); TR(tridx) - dur];
-        diff(tridx).G   = [diff(tridx).G(:);   0];
+        diff(tridx).tau = [TR(tridx) - dur; diff(tridx).tau(:)];
+        diff(tridx).G   = [0;               diff(tridx).G(:)];
     end
 
     % compute gradient moment for each TR
@@ -73,11 +74,19 @@ if exist('diff','var')
     end
 
     % confirm that gradient moments are all zero or an integer multiple of the smallest moment
-    nshifts = zeros(1,ntr);
-    deltaG0 = min(abs(G0));
-    nshifts(G0~=0) = G0(G0~=0)/deltaG0; % only divide when non-zero because could be that deltaG0 = 0 (no spoiling case)
-    assert(all(mod(nshifts,1)==0), 'gradient moments per TR are not all integer multiples of the shortest non-zero moment')
-    assert(all(nshifts>=0), 'negative gradient moments not implemented')
+    if any(G0~=0)
+        deltaG0 = min(abs(G0));
+        nshifts = G0/deltaG0;
+        assert(all(nshifts>=0), 'negative gradient moments not implemented')
+
+        % allow for small numerical imprecision
+        assert(all(abs(nshifts-round(nshifts))<eps(G0)), 'gradient moments per TR are not all integer multiples of the shortest non-zero moment')
+        nshifts = round(nshifts);
+        
+    else   
+        deltaG0 = 0;
+        nshifts = zeros(1,ntr);
+    end
 
     % total dephasing between two EPG states
     gmT = 42.58e6 * 1e-3 * 2*pi; % rad s^-1 mT^-1
