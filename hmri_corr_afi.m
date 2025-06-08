@@ -2,7 +2,7 @@ function hmri_corr_afi()
 
 %% Input parameters
 % Get sequence and tissue parameters
-protocol = "PVPphantom";
+protocol = "ADPCA";
 
 switch protocol
     case "Lutti"
@@ -25,7 +25,7 @@ switch protocol
         FA      = [60, 60];        % Flip angles [deg]
         TR      = [100, 20];       % [ms]
         phis    = 36.0;            % [deg]
-        B1range = linspace(1,150,100)'/100; % convert such that 100% = 1
+        B1range = linspace(5,150,50)'/100; % convert such that 100% = 1
 
         dur1 = 55; % ms
         Gdur{1} = [3,dur1/4,dur1/2,dur1/4]; % [ms]
@@ -111,6 +111,7 @@ assert(length(Gamp)==length(TR),'Each TR must have an associated set of gradient
 assert(FA(1)==FA(2),'AFI equation assumes both flip angles are equal')
 
 res = zeros(length(phis),1);
+porder = 3;
 for idx = 1:length(phis)
     Phi0 = phis(idx);
 
@@ -157,7 +158,7 @@ for idx = 1:length(phis)
 
     if isscalar(phis)
 
-        p = polyfit(100*mean(B1app_grsp,2),100*B1range,2);
+        p = polyfit(100*mean(B1app_grsp,2),100*B1range,porder);
         
         B1app_corr = polyval(p,100*B1app_grsp)/100;
         formattedDisplayText(p,"NumericFormat","long")
@@ -211,8 +212,8 @@ function [T1,T2,D] = tissueparams(tissuetype)
 
 switch tissuetype
     case "invivo7T"
-        T1 = 1500;             % [ms]
-        T2 = 50;               % [ms]
+        T1 = 1200;             % [ms]
+        T2 = 30;               % [ms]
         D  = 0.7;              % [µm^2/ms]
     case "postmortem7T"
         T1 = [500,1000,2000];  % [ms]
