@@ -136,7 +136,7 @@ end
 N=3*(kmax+1);
 
 %%% Build Shift matrix, S
-S0 = sparse(EPG_shift_matrices(kmax));
+S0 = EPG_shift_matrices(kmax);
 S = cell(ntr,1);
 for tridx=1:ntr
     S{tridx} = S0^nshifts(tridx);
@@ -152,8 +152,7 @@ for tridx=1:ntr
     E = diag([E2 E2 E1]);
 
     %%% regrowth
-    b{tridx} = zeros([N 1]);
-    b{tridx}(3) = 1-E1;%<--- just applies to Z0
+    b{tridx} = sparse(3,1,1-E1,N,1); % just applies to Z0
 
     %%% Add in diffusion at this point 
     if exist('diff','var')
@@ -164,7 +163,7 @@ for tridx=1:ntr
     end
         
     %%% Composite relax-shift
-    SE{tridx}=sparse(S{tridx}*E);
+    SE{tridx}=S{tridx}*E;
 end
 
 %%% Pre-allocate RF matrix

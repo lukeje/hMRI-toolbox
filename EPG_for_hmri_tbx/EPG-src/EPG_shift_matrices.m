@@ -4,32 +4,33 @@ function S = EPG_shift_matrices(Nmax)
 % i.e. 3 states per n-value
 %
 %   Shaihan Malik 2017-07-20
+% adapted by Luke J. Edwards to make indexing more explicit
 
 N = (Nmax+1) * 3;
-S = zeros([N N]);
+M = [3,Nmax+1];
 
-%%% F(k>=1) 
-kidx = 4:3:N; 
-sidx = kidx-3;%<-- this is the state that we shift FROM
-idx = kidx + N*(sidx-1);% linear indices of S(kidx,sidx)
-S(idx)=1;
+% indices of non-zero elements
+kidx = [];
+sidx = [];
 
+% F(k>=1)
+kidx = [kidx, sub2ind(M, 1, 2:Nmax+1)]; % first index (F0+) omitted as treated explicitly below
+sidx = [sidx, sub2ind(M, 1, 1:Nmax)];
 
-%%% F(k<1) <--- start at F-1 
-kidx = 5:3:N;
-kidx(end)=[];% most negative state relates to nothing; related row is empty
-sidx = kidx+3;%<- Negative states come from more negative states
-ix = kidx + N*(sidx-1);
-S(ix)=1;
+% F(k<1)
+kidx = [kidx, sub2ind(M, 2, 1:Nmax)]; % only to Nmax as most negative state relates to nothing
+sidx = [sidx, sub2ind(M, 2, 2:Nmax+1)]; % negative states come from more negative states
 
-%%% Z states don't shift
-kidx = 3:3:N ;
-ix = kidx + N*(kidx-1);
-S(ix)=1;
+% Z states don't shift
+kall = sub2ind(M, 3, 1:Nmax+1);
+kidx = [kidx, kall];
+sidx = [sidx, kall];
 
+% finally F0+ relates to F-1
+kidx = [kidx, sub2ind(M, 1, 1)];
+sidx = [sidx, sub2ind(M, 2, 2)];
 
-%%% finally F0+ - relates to F-1
-S([1 2],5)=1; % also F0* - this isn't used in practice
-
+% build matrix
+S = sparse(kidx, sidx, 1, N, N);
 
 end
