@@ -61,7 +61,7 @@ switch(b1map_params.b1type)
 
         descrip = 'SIEMENS tfl_b1map protocol';
 
-        P_trans  = calc_scaled_b1map(jobsubj, b1map_params, offset, scaling, descrip);
+        P_trans  = calc_scaled_b1map(jobsubj, b1map_params, [scaling offset], descrip);
 
     case 'rf_map'
         % processing B1 map from rf_map data
@@ -74,10 +74,10 @@ switch(b1map_params.b1type)
 
         descrip = 'SIEMENS rf_map protocol';
 
-        P_trans  = calc_scaled_b1map(jobsubj, b1map_params, offset, scaling, descrip);
+        P_trans  = calc_scaled_b1map(jobsubj, b1map_params, [scaling offset], descrip);
 
     case 'pre_processed_B1'
-        P_trans  = calc_scaled_b1map(jobsubj, b1map_params, b1map_params.offset, b1map_params.scafac, sprintf('Pre-processed B1 map rescaled with factor %f and offset %f', b1map_params.scafac, b1map_params.offset));
+        P_trans  = calc_scaled_b1map(jobsubj, b1map_params, b1map_params.scafac, sprintf('Pre-processed B1 map rescaled with factors %s', join(string(b1map_params.scafac))));
 
     otherwise
         hmri_log(sprintf('WARNING: unknown B1 type, no B1 map calculation performed.'),b1map_params.defflags);
@@ -542,7 +542,7 @@ end
 % B1 map scaling
 % Written by Tobias Leutritz; adapted by Luke Edwards
 %=========================================================================%
-function P_trans = calc_scaled_b1map(jobsubj, b1map_params, offset, scaling, descrip)
+function P_trans = calc_scaled_b1map(jobsubj, b1map_params, scaling, descrip)
 
 json = hmri_get_defaults('json');
 
@@ -566,7 +566,7 @@ try copyfile([spm_str_manip(V2.fname,'r') '.json'],[spm_str_manip(anat_fname,'r'
 V2 = spm_vol(anat_fname);
 
 % generating the map
-B1map_norm = Vol1*scaling + offset;
+B1map_norm = polyval(scaling,Vol1);
 
 % masking; mask is written out to folder of the anatomical image
 % (this should be outpath due to copying the anatomical file above)
@@ -690,12 +690,11 @@ switch b1_protocol
 
     case 'pre_processed_B1'
         b1map_params.scafac = jobsubj.b1_type.(b1_protocol).scafac;
-        b1map_params.offset = jobsubj.b1_type.(b1_protocol).offset;
         if ~isempty(b1map_params.b1input)
-            if b1map_params.scafac == 1 && b1map_params.offset == 0
+            if length(b1map_params.scafac)==2 && b1map_params.scafac(1) == 1 && b1map_params.scafac(2) == 0
                 hmri_log(sprintf('Preprocessed B1 map available. \nAssuming it is in percent units of the nominal flip angle. \nNo calculation required.'),b1map_params.defflags);
             else
-                hmri_log(sprintf('Preprocessed B1 map available. \nNon unity scaling factor (%f) or nonzero offset (%f) provided. Assuming B1 map will be expressed \nin p.u. of the nominal flip angle after rescaling.', b1map_params.scafac, b1map_params.offset),b1map_params.defflags);
+                hmri_log(sprintf('Preprocessed B1 map available. \nNon unity or higher order scaling factors (%s) or nonzero offset (%f) provided. Assuming B1 map will be expressed \nin p.u. of the nominal flip angle after rescaling.', join(string(b1map_params.scafac(1:end-1))), b1map_params.scafac(end)),b1map_params.defflags);
             end
         end
 
