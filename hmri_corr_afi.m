@@ -2,7 +2,7 @@ function hmri_corr_afi()
 
 %% Input parameters
 % Get sequence and tissue parameters
-protocol = "ADPCA";
+protocol = "KRK";
 
 switch protocol
     case "Lutti"
@@ -58,6 +58,25 @@ switch protocol
 
         phase_cycle = @(npulse,phi0,TR1,TR2) RF_phase_cycle_NehrkeSimplifiedError(npulse,phi0,[TR1/TR2,1]);
 
+    case "JS"
+        FA      = [60,  60]; % Flip angles [deg]
+        TR      = [20, 100]; % [ms]
+
+        phis    = 36;        % [deg]
+
+        B1range = (30:5:140)'/100; % convert such that 100% = 1
+        dur1 = 7.2; % ms
+        Gdur{1} = [1,dur1/4,dur1/2,dur1/4]; % [ms]
+        Gamp{1} = [26,30,-30,30];           % [mT/m]
+        dur2 = 36;  % ms
+        Gdur{2} = [3,dur2/4,dur2/2,dur2/4]; % [ms]
+        Gamp{2} = Gamp{1};           % [mT/m]
+
+        % Get tissue parameters
+        [T1range,T2range,D] = tissueparams("invivo7T");
+
+        phase_cycle = @(npulse,phi0,TR1,TR2) RF_phase_cycle_NehrkeSimplifiedError(npulse,phi0,[TR1/TR2,1]);
+
     case "BigBrain"
         FA      = [55,  55]; % Flip angles [deg]
         TR      = [25, 125]; % [ms]
@@ -95,6 +114,25 @@ switch protocol
 
         % Get tissue parameters
         [T1range,T2range,D] = tissueparams("PVPphantom3T");
+
+        phase_cycle = @(npulse,phi0,TR1,TR2) RF_phase_cycle_NehrkeSimplifiedError(npulse,phi0,[TR1/TR2,1]);
+    
+    case "IronSleep3T"
+        FA      = [60, 60]; % Flip angles [deg]
+        TR      = [50,150]; % [ms]
+
+        phis    = 129.3;    % [deg]
+
+        B1range = (20:5:120)'/100; % convert such that 100% = 1
+        dur1 = 42; % ms
+        Gdur{1} = [1,dur1/4,dur1/2,dur1/4]; % [ms]
+        Gamp{1} = [26,26,-26,26];           % [mT/m]
+        dur2 = 42; % ms
+        Gdur{2} = [3,dur2/4,dur2/2,dur2/4]; % [ms]
+        Gamp{2} = [26,26,-26,26];           % [mT/m]
+
+        % Get tissue parameters
+        [T1range,T2range,D] = tissueparams("invivo3T");
 
         phase_cycle = @(npulse,phi0,TR1,TR2) RF_phase_cycle_NehrkeSimplifiedError(npulse,phi0,[TR1/TR2,1]);
 end
@@ -214,6 +252,10 @@ switch tissuetype
     case "invivo7T"
         T1 = 1200;             % [ms]
         T2 = 30;               % [ms]
+        D  = 0.7;              % [µm^2/ms]
+    case "invivo3T"
+        T1 = [800,1000,1200];             % [ms]
+        T2 = 70;               % [ms]
         D  = 0.7;              % [µm^2/ms]
     case "postmortem7T"
         T1 = [500,1000,2000];  % [ms]
