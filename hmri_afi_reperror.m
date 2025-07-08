@@ -1,14 +1,14 @@
-function hmri_corr_afi()
+function hmri_afi_reperror()
 
 %% Input parameters
 % Get sequence and tissue parameters
-protocol = "IronSleep7Tv1g";
-
+protocol = "ADPCA";
+nreps=100;
 switch protocol
     case "Lutti"
         FA      = [60, 60];        % Flip angles [deg]
         TR      = [100, 20];       % [ms]
-        phis    = 36.0;            % [deg]
+        phi0    = 36.0;            % [deg]
         B1range = (30:10:130)'/100; % convert such that 100% = 1
 
         Gdur{1} = 55; % [ms]
@@ -24,8 +24,8 @@ switch protocol
     case "ADPCA"
         FA      = [60, 60];        % Flip angles [deg]
         TR      = [100, 20];       % [ms]
-        phis    = 36.0;            % [deg]
-        B1range = linspace(5,150,50)'/100; % convert such that 100% = 1
+        phi0    = 36.0;            % [deg]
+        B1range = [0.3,0.5,1,1.3]; % convert such that 100% = 1
 
         dur1 = 55; % ms
         Gdur{1} = [3,dur1/4,dur1/2,dur1/4]; % [ms]
@@ -39,11 +39,11 @@ switch protocol
 
         phase_cycle = @(npulse,phi0,TR1,TR2) RF_phase_cycle_NehrkeSimplifiedError(npulse,phi0,[1,TR2/TR1]);
 
-    case {"KRK", "IronSleep7Tv1g"}
+    case "KRK"
         FA      = [55,  55]; % Flip angles [deg]
         TR      = [25, 125]; % [ms]
 
-        phis    = 36;        % [deg]
+        phi0    = 36;        % [deg]
 
         B1range = (30:5:140)'/100; % convert such that 100% = 1
         dur1 = 7.2; % ms
@@ -58,37 +58,11 @@ switch protocol
 
         phase_cycle = @(npulse,phi0,TR1,TR2) RF_phase_cycle_NehrkeSimplifiedError(npulse,phi0,[TR1/TR2,1]);
 
-case "IronSleep7Tv1f"
-        FA      = [55,  55]; % Flip angles [deg]
-        TR      = [25, 125]; % [ms]
-
-        phis    = 36;        % [deg]
-
-        % spoiling in this version based on 6pi spoiling per pixel
-        amp = 26; % mT/m
-        px = 4e-3; % m
-        spperpx = 6*pi;
-        gamma = 267.522; % rad/(ms mT)
-        dur = spperpx/(px*gamma*amp);
-
-        B1range = (30:5:140)'/100; % convert such that 100% = 1
-        dur1 = 7.2; % ms
-        Gdur{1} = [dur,dur1/4,dur1/2,dur1/4]; % [ms]
-        Gamp{1} = [amp,30,-30,30];           % [mT/m]
-        dur2 = 36;  % ms
-        Gdur{2} = [dur,dur2/4,dur2/2,dur2/4]; % [ms]
-        Gamp{2} = Gamp{1};           % [mT/m]
-
-        % Get tissue parameters
-        [T1range,T2range,D] = tissueparams("invivo7T");
-
-        phase_cycle = @(npulse,phi0,TR1,TR2) RF_phase_cycle_NehrkeSimplifiedError(npulse,phi0,[TR1/TR2,1]);
-
     case "JS"
         FA      = [60,  60]; % Flip angles [deg]
         TR      = [20, 100]; % [ms]
 
-        phis    = 36;        % [deg]
+        phi0    = 36;        % [deg]
 
         B1range = (30:5:140)'/100; % convert such that 100% = 1
         dur1 = 7.2; % ms
@@ -106,11 +80,11 @@ case "IronSleep7Tv1f"
     case "BigBrain"
         FA      = [55,  55]; % Flip angles [deg]
         TR      = [25, 125]; % [ms]
-        
-        phis = linspace(5,180,100);        % [deg]
-        
+
+        phi0 = 50;        % [deg]
+
         B1range = (30:5:140)'/100; % convert such that 100% = 1
-        
+
         dur1 = 7.2; % ms
         Gdur{1} = [1,dur1/4,dur1/2,dur1/4]; % [ms]
         Gamp{1} = [26,30,-30,30];           % [mT/m]
@@ -128,7 +102,7 @@ case "IronSleep7Tv1f"
         FA      = [60, 60]; % Flip angles [deg]
         TR      = [1,n]*50; % [ms]
 
-        phis    = 50;    % [deg]
+        phi0    = 50;    % [deg]
 
         B1range = (50:5:120)'/100; % convert such that 100% = 1
         dur1 = 42; % ms
@@ -142,12 +116,12 @@ case "IronSleep7Tv1f"
         [T1range,T2range,D] = tissueparams("PVPphantom3T");
 
         phase_cycle = @(npulse,phi0,TR1,TR2) RF_phase_cycle_NehrkeSimplifiedError(npulse,phi0,[TR1/TR2,1]);
-    
+
     case "IronSleep3T"
         FA      = [60, 60]; % Flip angles [deg]
         TR      = [50,150]; % [ms]
 
-        phis    = 129.3;    % [deg]
+        phi0    = 129.3;    % [deg]
 
         B1range = (20:5:120)'/100; % convert such that 100% = 1
         dur1 = 42; % ms
@@ -174,90 +148,46 @@ Gdiff = struct('D', D*1e-9, 'G', Gamp, 'tau', Gdur); % struct assigns cell eleme
 assert(length(Gamp)==length(TR),'Each TR must have an associated set of gradients')
 assert(FA(1)==FA(2),'AFI equation assumes both flip angles are equal')
 
-res = zeros(length(phis),1);
-porder = 3;
-for idx = 1:length(phis)
-    Phi0 = phis(idx);
+% Run EPG simulation
+nB1 = length(B1range);
+nT1 = length(T1range);
+nT2 = length(T2range);
+B1app_grsp  = zeros([nreps nB1 nT1 nT2]);
+for T1idx = 1:nT1 % loop over T1 values, can use parfor for speed
 
-    % Run EPG simulation
-    nB1 = length(B1range);
-    nT1 = length(T1range);
-    nT2 = length(T2range);
-    S1  = zeros([nB1 nT1 nT2]);
-    S2  = zeros([nB1 nT1 nT2]);
-    for T1idx = 1:nT1 % loop over T1 values, can use parfor for speed
+    T1 = T1range(T1idx);
+    npulse = 2*nreps; %2*ceil(6*T1/sum(TR)); % ensure steady state signal
 
-        T1 = T1range(T1idx);
-        npulse = 2*ceil(6*T1/sum(TR)); % ensure steady state signal
+    for T2idx = 1:nT2
+        T2 = T2range(T2idx);
 
-        for T2idx = 1:nT2
-            T2 = T2range(T2idx);
+        for B1idx = 1:nB1  % loop over B1+ values
+            B1eff = B1range(B1idx);
 
-            for B1idx = 1:nB1  % loop over B1+ values
-                B1eff = B1range(B1idx);
+            % make train of flip angles and their phases
+            alpha_train = repmat(deg2rad(FA*B1eff), 1, npulse/length(FA)); % flip angles
+            phi_train   = phase_cycle(npulse,phi0,TR(1),TR(2));            % phases
 
-                % make train of flip angles and their phases
-                alpha_train = repmat(deg2rad(FA*B1eff), 1, npulse/length(FA)); % flip angles
-                phi_train   = phase_cycle(npulse,Phi0,TR(1),TR(2));            % phases
+            % Calculate signals via EPG
+            F0 = EPG_GRE_nTR(alpha_train, phi_train, TR, T1, T2, 'diff',Gdiff);
 
-                % Calculate signals via EPG
-                F0 = EPG_GRE_nTR(alpha_train, phi_train, TR, T1, T2, 'diff',Gdiff);
-                S1(B1idx,T1idx,T2idx) = abs(F0(end-1));
-                S2(B1idx,T1idx,T2idx) = abs(F0(end));
+            B1app_grsp(:,B1idx,T1idx,T2idx) = calc_AFI(abs(F0(1:2:end)), abs(F0(2:2:end)), TR(1),TR(2),FA(1));
 
-            end
         end
     end
-
-
-    %% Simulate using exact result assuming perfect spoiling
-    S1e = abs(hmri_test_utils.dualTRernstd(B1range*FA(1),TR(1),TR(2),1./T1range));
-    S2e = abs(hmri_test_utils.dualTRernstd(B1range*FA(1),TR(2),TR(1),1./T1range));
-
-    %% Calculate relative B1 map
-    B1app_grsp   = calc_AFI(S1, S2, TR(1),TR(2),FA(1));
-    B1app_compsp = calc_AFI(S1e,S2e,TR(1),TR(2),FA(1));
-
-    res(idx) = rms(B1app_grsp-B1range, "all");
-
-    if isscalar(phis)
-
-        p = polyfit(100*mean(B1app_grsp,2),100*B1range,porder);
-        
-        B1app_corr = polyval(p,100*B1app_grsp)/100;
-        formattedDisplayText(p,"NumericFormat","long")
-        
-        figure
-
-        subplot(2,1,1)
-        plot(100*B1range,100*B1app_grsp,'-x')
-        hold on
-        plot(100*B1range,100*B1app_compsp,'-o')
-        plot(100*B1range,100*B1app_corr,'-s')
-        legend("T1 = "+T1range(:)+" ms"+[" grad only", " perfect", " corrected"],'Location',"Best")
-        xlabel("B1 (p.u.)")
-        ylabel("B1est (p.u.)")
-        title(sprintf('Phi0 = %i°',Phi0))
-        hold off
-
-        subplot(2,1,2)
-        plot(100*B1range,100*(B1app_grsp-B1range),'-x')
-        hold on
-        plot(100*B1range,100*(B1app_compsp-B1range),'-o')
-        plot(100*B1range,100*(B1app_corr-B1range),'-s')
-        %legend("T1 = "+T1range(:)+" ms"+[" grad only", " perfect", " corrected"],'Location',"Best")
-        xlabel("B1 (p.u.)")
-        ylabel("B1est - B1 (p.u.)")
-        hold off
-    end
 end
 
-if ~isscalar(phis)
-    figure
-    plot(phis,res)
-    xlabel("Phi0 / deg")
-    ylabel("rms error")
-end
+
+%% Simulate using exact result assuming perfect spoiling
+%S1e = abs(hmri_test_utils.dualTRernstd(B1range*FA(1),TR(1),TR(2),1./T1range));
+%S2e = abs(hmri_test_utils.dualTRernstd(B1range*FA(1),TR(2),TR(1),1./T1range));
+%B1app_compsp = calc_AFI(S1e,S2e,TR(1),TR(2),FA(1));
+
+plot(1:nreps,100*real(B1app_grsp-B1range))
+legend("B1 = "+string(100*B1range)+" (p.u.)","Location","best")
+xlabel("repetition")
+ylabel("B1 estimation error (p.u.)")
+
 end
 
 function B1map = calc_AFI(Y1,Y2,TR1,TR2,nomFA)
