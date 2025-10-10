@@ -22,11 +22,12 @@ end
 
 % E is a simple diagonal matrix - just need to compute this diagonal
 Ed = diag(E);
-EdT = Ed(1:2);
-EdL = Ed(3);
+Ed = reshape(Ed,3,[]);
+EdT = Ed(1:2,:);
+EdL = Ed(3  ,:);
 
-EdT = EdT*bDT';
-EdL = EdL*bDL';
+EdT = full(EdT).*reshape(bDT,1,1,[]);
+EdL = full(EdL).*reshape(bDL,1,1,[]);
 
 % Combine them
 Ed = cat(1,EdT,EdL);

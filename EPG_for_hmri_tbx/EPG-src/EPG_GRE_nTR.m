@@ -1,5 +1,5 @@
-function [F0,Fn,Zn,F] = EPG_GRE_nTR(theta,phi,TR,T1,T2,varargin)
-%   [F0,Fn,Zn,F] = EPG_GRE_nTR(theta,phi,TR,T1,T2,varargin)
+function F0 = EPG_GRE_nTR(theta,phi,TR,T1,T2,varargin)
+%   F0 = EPG_GRE_nTR(theta,phi,TR,T1,T2,varargin)
 %
 %   Single pool EPG (classic version) for gradient echo sequences with
 %   different interleaved TRs
@@ -20,22 +20,17 @@ function [F0,Fn,Zn,F] = EPG_GRE_nTR(theta,phi,TR,T1,T2,varargin)
 %                           accelerate calculation. 
 %                           Setting kmax=inf ensures ALL pathways are
 %                           computed
-%               diff:       structure with fields:
+%               diff:       cell array of struct array with fields:
 %                           G    - Gradient amplitude(s) mT/m
 %                           tau  - Gradient durations(s) ms
 %                           D    - Diffusion coeff       m^2/s (i.e. expect 10^-9)
-%               diffp:      structure with fields:
-%                           G    - Gradient amplitude(s) mT/m
-%                           tau  - Gradient durations(s) ms
-%                           D    - Diffusion coeff       m^2/s (i.e. expect 10^-9)
+%                           each element of the cell array represents a different 
+%                           gradient axis, and each element of the struct array
+%                           is a different TR
 %
 %   Outputs:                
 %               F0:         signal (F0 state) directly after each
 %                           excitation
-%               Fn:         full EPG diagram for all transverse states
-%               Zn:         full EPG diagram for all longitudinal states
-%               F:          full state matrix. Each column is arranged as
-%                           [F0 F0* Z0 F1 F-1* Z1 F2 F-2* Z2 ...] etc
 %
 %
 %   Adapted from Shaihan Malik's EPG_GRE.m by Luke J. Edwards
@@ -53,11 +48,12 @@ for ii=1:length(varargin)
     % Diffusion - structure contains, G, tau, D
     if strcmpi(varargin{ii},'diff')
         diff = varargin{ii+1};
-    end
-
-    % Diffusion in perpendicular direction - structure contains, G, tau, D
-    if strcmpi(varargin{ii},'diffp')
-        diff = varargin{ii+1};
+        if isstruct(diff)
+            diff = {diff};
+        elseif ~iscell(diff)
+            error("diff argument must either be a struct or a cell array of structs (one per gradient axis)")
+        end
+        assert(length(diff)<=3, "there can only be up to three separate gradient axes!")
     end
     
 end
@@ -66,63 +62,97 @@ end
 % far we need to move in k-space   
 ntr = length(TR);
 if exist('diff','var')
-    diff = filltr(diff,TR);
-    [nshifts,dk] = computeshifts(diff);
+    ngaxes  = length(diff);
+    nshifts = cell(1,length(diff));
+    dk      = zeros(1,length(diff));
+    for d=1:ngaxes
+        diff{d} = filltr(diff{d},TR);
+        [nshifts{d},dk(d)] = computeshifts(diff{d});
+    end
 else
     % default to implicitly having the same amount of spoiling every TR
-    nshifts = ones(1,ntr);
-    dk = [];
+    ngaxes = 1;
+    nshifts = {ones(1,ntr)};
+    dk = {[]};
 end
 
 % maximum k which can be reached in the simulation
 np = length(theta);
-allshifts = repmat(nshifts,1,ceil(np/ntr)); % all shifts if we always complete the cycle
-allshifts = allshifts(1:np);   % all the shifts actually performed
-kall = sum(allshifts(1:np-1)); % ignore last shift as we break after last pulse
+kall = zeros(1,length(diff));
+allshifts = cell(1,ngaxes);
+for d=1:ngaxes
+    allshifts{d} = repmat(nshifts{d},1,ceil(np/ntr)); % all shifts if we always complete the cycle
+    allshifts{d} = allshifts{d}(1:np);   % all the shifts actually performed
+    kall(d) = sum(allshifts{d}(1:np-1)); % ignore last shift as we break after last pulse
+end
 
 %%% The maximum order varies through the sequence. This can be used to speed up the calculation 
 % if not defined, assume want max
 if ~exist('kmax','var')
     kmax = kall;
+elseif length(kmax)<ngaxes
+    error("please specify kmax either as a scalar or one value per gradient axis!")
+elseif length(kmax)>ngaxes
+    error("too many elements in kmax! It cannot be greater than the number of gradient axes!")
+else
+    kmax = [kmax(:); zeros(3-ngaxes,1)];
 end
 
-if isinf(kmax)
+if any(isinf(kmax))
     % this flags that we don't want any pruning of pathways
     allpathways = true;
-    kmax = kall; 
+    kmax = kall;
 else
     allpathways = false;
 end
 
 %%% Variable pathways
-if allpathways
-    kmax_per_pulse = cumsum(allshifts); % current max state plus subsequent shift
-    kmax_per_pulse(kmax_per_pulse>kmax)=kmax; % don't exceed kmax as we break after last RF pulse
-else
-    % reduce the number of required states by using the fact that states must be refocused
-    % last shift is zero as we break after last pulse
-    kmax_per_pulse = min(cumsum(allshifts),cumsum([allshifts(1:end-1),0],'reverse'));
-    kmax_per_pulse(kmax_per_pulse>kmax)=kmax;
-     
-    if max(kmax_per_pulse)<kmax
-        kmax = max(kmax_per_pulse);
+kmax_per_pulse = repmat({zeros(np,1)},1,3);
+for d=1:ngaxes
+    if allpathways
+        kmax_per_pulse{d} = cumsum(allshifts{d}); % current max state plus subsequent shift
+        kmax_per_pulse{d}(kmax_per_pulse{d}>kmax(d))=kmax(d); % don't exceed kmax as we break after last RF pulse
+    else
+        % reduce the number of required states by using the fact that states must be refocused
+        % last shift is zero as we break after last pulse
+        kmax_per_pulse{d} = min(cumsum(allshifts{d}),cumsum([allshifts{d}(1:end-1),0],'reverse'));
+        kmax_per_pulse{d}(kmax_per_pulse{d}>kmax(d))=kmax(d);
+
+        if max(kmax_per_pulse{d})<kmax(d)
+            kmax(d) = max(kmax_per_pulse{d});
+        end
     end
 end
 
-%%% Number of states is 3x(kmax +1) -- +1 for the zero order
-N=3*(kmax+1);
 
-%%% Build Shift matrix, S
-S0 = EPG_shift_matrices(kmax);
-S = cell(ntr,1);
+%%% Number of states is 3x(kmax +1) -- +1 for the zero order for one axis
+N = 3*prod(kmax+1);
+
+
+%%% Build Shift matrices, S
+S = cell(1,ntr);
 for tridx=1:ntr
-    S{tridx} = S0^nshifts(tridx);
+    for d=1:ngaxes
+        % remember to permute vectors so that S0 operates on the correct g2 x spin dimension
+        % pre:  g2 x g1 x spin -I(g2)xP(g1,spin)-> g2 x spin x g1
+        % post: g2 x spin x g1 -I(g2)xP(spin,g1)-> g2 x g1 x spin
+        S0 = EPG_shift_matrices(kmax(d));
+        if d==1
+            S{tridx} = S0^nshifts{d}(tridx);
+        else
+            Pre   = kron(speye(kmax(d)+1), permuteKron(prod(kmax(1:(d-1))+1), 3));
+            Post  = kron(speye(kmax(d)+1), permuteKron(3, prod(kmax(1:(d-1))+1)));
+            S{tridx} = ...
+                Post*kron(S0^nshifts{d}(tridx), speye(prod(kmax(1:(d-1))+1)))...
+                *Pre*kron(speye(kmax(d)+1), S{tridx});
+        end
+    end
 end
 
 
 %% Set up matrices for Relaxation
-SE = cell(ntr,1);
-b  = cell(ntr,1);
+SE = cell(1,ntr);
+b  = cell(1,ntr);
 for tridx=1:ntr
     E1 = exp(-TR(tridx)/T1);
     E2 = exp(-TR(tridx)/T2);
@@ -133,24 +163,23 @@ for tridx=1:ntr
 
     %%% Add in diffusion at this point 
     if exist('diff','var')
-        E = E_diff(E,diff(tridx),kmax,N,dk);
+        for d=1:ngaxes
+            E = E_diff(E,diff{d}(tridx),kmax(d),3*prod(kmax(1:d)+1),dk(d));
+        end
     else
         % If no diffusion, E is the same for all EPG orders
-        E = spdiags(repmat([E2 E2 E1],[1 kmax+1])',0,N,N);
+        E = spdiags(repmat([E2 E2 E1],[1 kmax+1])',0,N(1),N(1));
     end
         
     %%% Composite relax-shift
     SE{tridx}=S{tridx}*E;
 end
 
-%%% Pre-allocate RF matrix
-T = zeros(N,N);
-T = sparse(T);
-
+%%% Pre-allocate RF matrix indices
 % store the indices of the top 3x3 corner, this helps build_T
 i1 = [];
 for ii=1:3
-    i1 = cat(2,i1,sub2ind(size(T),1:3,ii*ones(1,3)));
+    i1 = cat(2,i1,sub2ind([3,3],1:3,ii*ones(1,3)));
 end
 
 
@@ -159,7 +188,7 @@ F = zeros([N np]); %%<-- records the state after each RF pulse
 
 %%% Initial State
 FF = zeros([N 1]);
-FF(3)=1;   % M0 - could be variable
+FF(3)=1; % M0 - could be variable
 
 
 %% Main body of gradient echo sequence, loop over TRs 
@@ -169,11 +198,12 @@ for jj=1:np
     A = RF_rot(theta(jj),phi(jj));
    
     %%% Variable order of EPG, speed up calculation
-    kmax_current = kmax_per_pulse(jj);
-    kidx = 1:3*(kmax_current+1); %+1 because states start at zero
+    %+1 because states start at zero
+    [i,j,k,l] = ndgrid(1:3,1:(kmax_per_pulse{1}(jj)+1),1:(kmax_per_pulse{2}(jj)+1),1:(kmax_per_pulse{3}(jj)+1));
+    kidx = sub2ind([3,kmax+1],i(:),j(:),k(:),l(:));
     
     %%% Replicate A to make large transition matrix
-    build_T(A);
+    T = kron(speye(prod(kmax+1)), build_T(sparse(3,3),A,0,i1));
     
     %%% Apply flip and store this: splitting these large matrix
     %%% multiplications into smaller ones might help
@@ -188,8 +218,23 @@ for jj=1:np
     FF(kidx) = SE{tridx}(kidx,kidx)*F(kidx,jj)+b{tridx}(kidx);
     
     % Deal with complex conjugate after shift
-    shiftedidx = 1:3:(3*nshifts(tridx));
-    FF(shiftedidx) = conj(FF(shiftedidx)); %<---- F0, etc. comes from F-n so conjugate 
+    for d=1:ngaxes
+        switch d
+            case 1
+                [i,j,k,l] = ndgrid(1, 1:nshifts{d}(tridx), ...
+                    1:(kmax_per_pulse{2}(jj)+1), 1:(kmax_per_pulse{3}(jj)+1));
+                shiftedidx = sub2ind([3,kmax+1], i,j,k,l);
+            case 2
+                [i,j,k,l] = ndgrid(1, 1:(kmax_per_pulse{1}(jj)+1), ...
+                    1:nshifts{d}(tridx), 1:(kmax_per_pulse{3}(jj)+1));
+                shiftedidx = sub2ind([3,kmax+1], i,j,k,l);
+            case 3
+                [i,j,k,l] = ndgrid(1, 1:(kmax_per_pulse{1}(jj)+1), ...
+                    1:(kmax_per_pulse{2}(jj)+1), 1:nshifts{d}(tridx));
+                shiftedidx = sub2ind([3,kmax+1], i,j,k,l);
+        end
+        FF(shiftedidx) = conj(FF(shiftedidx)); %<---- F0, etc. comes from F-n so conjugate
+    end
 end
 
 
@@ -200,43 +245,29 @@ F0=F(1,:);
 F0 = F0(:) .* exp(-1i*phi(:)) *1i;
 
 
-%%% Construct Fn and Zn
-idx=[fliplr(5:3:size(F,1)) 1 4:3:size(F,1)]; 
-kvals = -kmax:kmax;
-
-%%% Now reorder
-Fn = F(idx,:);
-
-%%% Conjugate
-Fn(kvals<0,:)=conj(Fn(kvals<0,:));
-
-%%% Similar for Zn
-Zn = F(3:3:end,:);
-
-
-
-    %%% NORMAL EPG transition matrix as per Weigel et al JMR 2010 276-285 
-    function Tap = RF_rot(a,p)
-        Tap = zeros([3 3]);
-        Tap(1) = cos(a/2).^2;
-        Tap(2) = exp(-2*1i*p)*(sin(a/2)).^2;
-        Tap(3) = -0.5*1i*exp(-1i*p)*sin(a);
-        Tap(4) = conj(Tap(2));
-        Tap(5) = Tap(1);
-        Tap(6) = 0.5*1i*exp(1i*p)*sin(a);
-        Tap(7) = -1i*exp(1i*p)*sin(a);
-        Tap(8) = 1i*exp(-1i*p)*sin(a);
-        Tap(9) = cos(a);
+function T = build_T(T,AA,kmax,i1)
+    ksft = 3*(3*(kmax+1)+1);
+    for i2=1:9
+        T(i1(i2):ksft:end)=AA(i2);
     end
-
-    function build_T(AA)
-        ksft = 3*(3*(kmax+1)+1);
-        for i2=1:9
-            T(i1(i2):ksft:end)=AA(i2);
-        end
-    end
-
 end
+
+%%% NORMAL EPG transition matrix as per Weigel et al JMR 2010 276-285
+function Tap = RF_rot(a,p)
+    Tap = zeros([3 3]);
+    Tap(1) = cos(a/2).^2;
+    Tap(2) = exp(-2*1i*p)*(sin(a/2)).^2;
+    Tap(3) = -0.5*1i*exp(-1i*p)*sin(a);
+    Tap(4) = conj(Tap(2));
+    Tap(5) = Tap(1);
+    Tap(6) = 0.5*1i*exp(1i*p)*sin(a);
+    Tap(7) = -1i*exp(1i*p)*sin(a);
+    Tap(8) = 1i*exp(-1i*p)*sin(a);
+    Tap(9) = cos(a);
+end
+end
+
+
 
 function diff = filltr(diff,TR)
     % fill out TRs to ensure b-values computed correctly
