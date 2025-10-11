@@ -198,12 +198,12 @@ kvals = -kmax:kmax;
 
 %%% Now reorder
 Fn = F(idx,:);
+
 %%% Conjugate
 Fn(kvals<0,:)=conj(Fn(kvals<0,:));
 
 %%% Similar for Zn
 Zn = F(3:3:end,:);
-
 
 
     %%% NORMAL EPG transition matrix as per Weigel et al JMR 2010 276-285 

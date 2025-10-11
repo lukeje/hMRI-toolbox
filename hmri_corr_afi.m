@@ -2,8 +2,9 @@ function hmri_corr_afi()
 
 %% Input parameters
 % Get sequence and tissue parameters
-protocol = "IronSleep7Tv1g";
+protocol = "ADPCA";
 
+axisbalance = [];
 switch protocol
     case "Lutti"
         FA      = [60, 60];        % Flip angles [deg]
@@ -29,10 +30,12 @@ switch protocol
 
         dur1 = 55; % ms
         Gdur{1} = [3,dur1/4,dur1/2,dur1/4]; % [ms]
-        Gamp{1} = [26,30,-30,30];           % [mT/m]
+        Gamp{1} = [26,30,-30,30]; % [mT/m]
         dur2 = 11; % ms
         Gdur{2} = [1,dur2/4,dur2/2,dur2/4]; % [ms]
-        Gamp{2} = Gamp{1};           % [mT/m]
+        Gamp{2} = Gamp{1}; % [mT/m]
+
+        axisbalance = {[1,1,1,1], [0,1,1,1]};
 
         % Get tissue parameters
         [T1range,T2range,D] = tissueparams("invivo7T");
@@ -43,7 +46,7 @@ switch protocol
         FA      = [55,  55]; % Flip angles [deg]
         TR      = [25, 125]; % [ms]
 
-        phis    = 36;        % [deg]
+        phis    = 36.0;        % [deg]
 
         B1range = (30:5:140)'/100; % convert such that 100% = 1
         dur1 = 7.2; % ms
@@ -169,7 +172,16 @@ assert(length(Gamp)==length(Gdur))
 for gIdx=1:length(Gamp)
     assert(length(Gdur{gIdx})==length(Gamp{gIdx}),'The vectors of gradient durations and amplitudes must have the same length!')
 end
-Gdiff = struct('D', D*1e-9, 'G', Gamp, 'tau', Gdur); % struct assigns cell elements to separate struct array elements
+Gdiff = struct('D',D*1e-9, 'G',Gamp, 'tau',Gdur); % struct assigns cell elements to separate struct array elements
+if ~isempty(axisbalance)
+    Gnew = repmat({Gdiff},length(axisbalance),1);
+    for n=1:length(axisbalance)
+        for tridx=1:length(Gdiff)
+            Gnew{n}(tridx).G = Gnew{n}(tridx).G(:).*axisbalance{n}(:);
+        end
+    end
+    Gdiff = Gnew;
+end
 
 assert(length(Gamp)==length(TR),'Each TR must have an associated set of gradients')
 assert(FA(1)==FA(2),'AFI equation assumes both flip angles are equal')
@@ -208,7 +220,6 @@ for idx = 1:length(phis)
             end
         end
     end
-
 
     %% Simulate using exact result assuming perfect spoiling
     S1e = abs(hmri_test_utils.dualTRernstd(B1range*FA(1),TR(1),TR(2),1./T1range));

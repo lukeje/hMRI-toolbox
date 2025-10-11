@@ -42,7 +42,7 @@ for ii=1:length(varargin)
     % kmax = this is the maximum EPG 'order' to consider
     % If this is infinity then don't do any pruning
     if strcmpi(varargin{ii},'kmax')
-        kmax = varargin{ii+1};
+        kmaxin = varargin{ii+1};
     end
     
     % Diffusion - structure contains, G, tau, D
@@ -78,24 +78,27 @@ end
 
 % maximum k which can be reached in the simulation
 np = length(theta);
-kall = zeros(1,length(diff));
+kall = zeros(1,3); % up to 3 gradient axes
 allshifts = cell(1,ngaxes);
 for d=1:ngaxes
-    allshifts{d} = repmat(nshifts{d},1,ceil(np/ntr)); % all shifts if we always complete the cycle
+    allshifts{d} = repmat(nshifts{d},1,ceil(np/ntr)); % all shifts if we always complete the TR cycle
     allshifts{d} = allshifts{d}(1:np);   % all the shifts actually performed
     kall(d) = sum(allshifts{d}(1:np-1)); % ignore last shift as we break after last pulse
 end
 
 %%% The maximum order varies through the sequence. This can be used to speed up the calculation 
 % if not defined, assume want max
-if ~exist('kmax','var')
+kmax = zeros(1,3); % up to 3 gradient axes
+if ~exist('kmaxin','var')
     kmax = kall;
-elseif length(kmax)<ngaxes
+elseif isscalar(kmaxin)
+    kmax(1:ngaxes) = kmaxin;
+elseif length(kmaxin)<ngaxes
     error("please specify kmax either as a scalar or one value per gradient axis!")
-elseif length(kmax)>ngaxes
+elseif length(kmaxin)>ngaxes
     error("too many elements in kmax! It cannot be greater than the number of gradient axes!")
 else
-    kmax = [kmax(:); zeros(3-ngaxes,1)];
+    kmax(1:ngaxes) = kmaxin;
 end
 
 if any(isinf(kmax))
@@ -107,7 +110,7 @@ else
 end
 
 %%% Variable pathways
-kmax_per_pulse = repmat({zeros(np,1)},1,3);
+kmax_per_pulse = repmat({zeros(np,1)},1,3); % 3 as up to 3 gradient axes
 for d=1:ngaxes
     if allpathways
         kmax_per_pulse{d} = cumsum(allshifts{d}); % current max state plus subsequent shift
@@ -117,10 +120,7 @@ for d=1:ngaxes
         % last shift is zero as we break after last pulse
         kmax_per_pulse{d} = min(cumsum(allshifts{d}),cumsum([allshifts{d}(1:end-1),0],'reverse'));
         kmax_per_pulse{d}(kmax_per_pulse{d}>kmax(d))=kmax(d);
-
-        if max(kmax_per_pulse{d})<kmax(d)
-            kmax(d) = max(kmax_per_pulse{d});
-        end
+        kmax(d) = min(max(kmax_per_pulse{d}),kmax(d));
     end
 end
 
@@ -132,20 +132,17 @@ N = 3*prod(kmax+1);
 %%% Build Shift matrices, S
 S = cell(1,ntr);
 for tridx=1:ntr
-    for d=1:ngaxes
+    S0 = EPG_shift_matrices(kmax(1));
+    S{tridx} = S0^nshifts{1}(tridx);
+    for d=2:ngaxes
         % remember to permute vectors so that S0 operates on the correct g2 x spin dimension
         % pre:  g2 x g1 x spin -I(g2)xP(g1,spin)-> g2 x spin x g1
         % post: g2 x spin x g1 -I(g2)xP(spin,g1)-> g2 x g1 x spin
         S0 = EPG_shift_matrices(kmax(d));
-        if d==1
-            S{tridx} = S0^nshifts{d}(tridx);
-        else
-            Pre   = kron(speye(kmax(d)+1), permuteKron(prod(kmax(1:(d-1))+1), 3));
-            Post  = kron(speye(kmax(d)+1), permuteKron(3, prod(kmax(1:(d-1))+1)));
-            S{tridx} = ...
-                Post*kron(S0^nshifts{d}(tridx), speye(prod(kmax(1:(d-1))+1)))...
-                *Pre*kron(speye(kmax(d)+1), S{tridx});
-        end
+        Pre   = kron(speye(kmax(d)+1), permuteKron(prod(kmax(1:(d-1))+1), 3));
+        Post  = kron(speye(kmax(d)+1), permuteKron(3, prod(kmax(1:(d-1))+1)));        
+        S{tridx} = Post*kron(S0^nshifts{d}(tridx), speye(prod(kmax(1:(d-1))+1)))...
+            *Pre*kron(speye(kmax(d)+1), S{tridx});
     end
 end
 
@@ -168,18 +165,11 @@ for tridx=1:ntr
         end
     else
         % If no diffusion, E is the same for all EPG orders
-        E = spdiags(repmat([E2 E2 E1],[1 kmax+1])',0,N(1),N(1));
+        E = spdiags(repmat([E2 E2 E1],[1 kmax+1])',0,N,N);
     end
         
     %%% Composite relax-shift
     SE{tridx}=S{tridx}*E;
-end
-
-%%% Pre-allocate RF matrix indices
-% store the indices of the top 3x3 corner, this helps build_T
-i1 = [];
-for ii=1:3
-    i1 = cat(2,i1,sub2ind([3,3],1:3,ii*ones(1,3)));
 end
 
 
@@ -203,7 +193,7 @@ for jj=1:np
     kidx = sub2ind([3,kmax+1],i(:),j(:),k(:),l(:));
     
     %%% Replicate A to make large transition matrix
-    T = kron(speye(prod(kmax+1)), build_T(sparse(3,3),A,0,i1));
+    T = kron(speye(prod(kmax+1)), build_T(sparse(3,3),A,0));
     
     %%% Apply flip and store this: splitting these large matrix
     %%% multiplications into smaller ones might help
@@ -218,23 +208,24 @@ for jj=1:np
     FF(kidx) = SE{tridx}(kidx,kidx)*F(kidx,jj)+b{tridx}(kidx);
     
     % Deal with complex conjugate after shift
+    shiftedidx = [];
     for d=1:ngaxes
         switch d
             case 1
                 [i,j,k,l] = ndgrid(1, 1:nshifts{d}(tridx), ...
                     1:(kmax_per_pulse{2}(jj)+1), 1:(kmax_per_pulse{3}(jj)+1));
-                shiftedidx = sub2ind([3,kmax+1], i,j,k,l);
+                shiftedidx = union(shiftedidx,sub2ind([3,kmax+1], i,j,k,l));
             case 2
                 [i,j,k,l] = ndgrid(1, 1:(kmax_per_pulse{1}(jj)+1), ...
                     1:nshifts{d}(tridx), 1:(kmax_per_pulse{3}(jj)+1));
-                shiftedidx = sub2ind([3,kmax+1], i,j,k,l);
+                shiftedidx = union(shiftedidx,sub2ind([3,kmax+1], i,j,k,l));
             case 3
                 [i,j,k,l] = ndgrid(1, 1:(kmax_per_pulse{1}(jj)+1), ...
                     1:(kmax_per_pulse{2}(jj)+1), 1:nshifts{d}(tridx));
-                shiftedidx = sub2ind([3,kmax+1], i,j,k,l);
+                shiftedidx = union(shiftedidx,sub2ind([3,kmax+1], i,j,k,l));
         end
-        FF(shiftedidx) = conj(FF(shiftedidx)); %<---- F0, etc. comes from F-n so conjugate
     end
+    FF(shiftedidx) = conj(FF(shiftedidx)); %<---- F0, etc. comes from F-n so conjugate
 end
 
 
@@ -245,29 +236,29 @@ F0=F(1,:);
 F0 = F0(:) .* exp(-1i*phi(:)) *1i;
 
 
-function T = build_T(T,AA,kmax,i1)
-    ksft = 3*(3*(kmax+1)+1);
-    for i2=1:9
-        T(i1(i2):ksft:end)=AA(i2);
+    %%% NORMAL EPG transition matrix as per Weigel et al JMR 2010 276-285
+    function Tap = RF_rot(a,p)
+        Tap = zeros([3 3]);
+        Tap(1) = cos(a/2).^2;
+        Tap(2) = exp(-2*1i*p)*(sin(a/2)).^2;
+        Tap(3) = -0.5*1i*exp(-1i*p)*sin(a);
+        Tap(4) = conj(Tap(2));
+        Tap(5) = Tap(1);
+        Tap(6) = 0.5*1i*exp(1i*p)*sin(a);
+        Tap(7) = -1i*exp(1i*p)*sin(a);
+        Tap(8) = 1i*exp(-1i*p)*sin(a);
+        Tap(9) = cos(a);
     end
-end
 
-%%% NORMAL EPG transition matrix as per Weigel et al JMR 2010 276-285
-function Tap = RF_rot(a,p)
-    Tap = zeros([3 3]);
-    Tap(1) = cos(a/2).^2;
-    Tap(2) = exp(-2*1i*p)*(sin(a/2)).^2;
-    Tap(3) = -0.5*1i*exp(-1i*p)*sin(a);
-    Tap(4) = conj(Tap(2));
-    Tap(5) = Tap(1);
-    Tap(6) = 0.5*1i*exp(1i*p)*sin(a);
-    Tap(7) = -1i*exp(1i*p)*sin(a);
-    Tap(8) = 1i*exp(-1i*p)*sin(a);
-    Tap(9) = cos(a);
+    function T = build_T(T,AA,kmax)
+        ksft = 3*(3*(kmax+1)+1);
+        i1 = 1:9;
+        for i2=1:9
+            T(i1(i2):ksft:end)=AA(i2);
+        end
+    end
+    
 end
-end
-
-
 
 function diff = filltr(diff,TR)
     % fill out TRs to ensure b-values computed correctly
@@ -299,7 +290,7 @@ function [nshifts,dk] = computeshifts(diff)
         assert(all(nshifts>=0), 'negative gradient moments not implemented')
 
         % allow for small numerical imprecision
-        assert(all(abs(nshifts-round(nshifts))<eps(G0)), 'gradient moments per TR are not all integer multiples of the shortest non-zero moment')
+        assert(all(abs(nshifts-round(nshifts))<2*eps(G0)), 'gradient moments per TR are not all integer multiples of the shortest non-zero moment')
         nshifts = round(nshifts);
     else   
         deltaG0 = 0;
