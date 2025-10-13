@@ -1,4 +1,4 @@
-function S = EPG_shift_matrices(Nmax)
+function S = EPG_shift_matrices(Nmax,negk)
 % Generates shift matrices up to order Nmax for 3 standard EPG
 % Layout of state vector is [F0 F0* Z0 F1 F-1 Z1 F2 F-2 Z2 ... etc]
 % i.e. 3 states per n-value
@@ -9,6 +9,11 @@ function S = EPG_shift_matrices(Nmax)
 if Nmax==0
     S = speye(3);
 else
+    if exist('negk','var') && negk
+        % include negative k
+        Nmax = 2*Nmax;
+    end
+
     N = (Nmax+1) * 3;
     M = [3,Nmax+1];
 
@@ -29,9 +34,11 @@ else
     kidx = [kidx, kall];
     sidx = [sidx, kall];
 
-    % finally F0+ relates to F-1
-    kidx = [kidx, sub2ind(M, 1, 1)];
-    sidx = [sidx, sub2ind(M, 2, 2)];
+    if ~exist('negk','var') || ~negk
+        % finally F0+ relates to F-1
+        kidx = [kidx, sub2ind(M, 1, 1)];
+        sidx = [sidx, sub2ind(M, 2, 2)];
+    end
 
     % build matrix
     S = sparse(kidx, sidx, 1, N, N);

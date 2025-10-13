@@ -125,24 +125,26 @@ for d=1:ngaxes
 end
 
 
-%%% Number of states is 3x(kmax +1) -- +1 for the zero order for one axis
-N = 3*prod(kmax+1);
+%%% Number of states is 3x(2*kmax +1) -- +1 for the zero order
+N = 3*prod(2*kmax+1);
+iF0  = sub2ind([3,2*kmax+1],1,kmax(1)+1,kmax(2)+1,kmax(3)+1);
+iF0z = sub2ind([3,2*kmax+1],3,kmax(1)+1,kmax(2)+1,kmax(3)+1);
 
 
 %%% Build Shift matrices, S
 S = cell(1,ntr);
 for tridx=1:ntr
-    S0 = EPG_shift_matrices(kmax(1));
+    S0 = EPG_shift_matrices(kmax(1),true);
     S{tridx} = S0^nshifts{1}(tridx);
     for d=2:ngaxes
         % remember to permute vectors so that S0 operates on the correct g2 x spin dimension
         % pre:  g2 x g1 x spin -I(g2)xP(g1,spin)-> g2 x spin x g1
         % post: g2 x spin x g1 -I(g2)xP(spin,g1)-> g2 x g1 x spin
-        S0 = EPG_shift_matrices(kmax(d));
-        Pre   = kron(speye(kmax(d)+1), permuteKron(prod(kmax(1:(d-1))+1), 3));
-        Post  = kron(speye(kmax(d)+1), permuteKron(3, prod(kmax(1:(d-1))+1)));        
-        S{tridx} = Post*kron(S0^nshifts{d}(tridx), speye(prod(kmax(1:(d-1))+1)))...
-            *Pre*kron(speye(kmax(d)+1), S{tridx});
+        S0 = EPG_shift_matrices(kmax(d),true);
+        Pre   = kron(speye(2*kmax(d)+1), permuteKron(prod(2*kmax(1:(d-1))+1), 3));
+        Post  = kron(speye(2*kmax(d)+1), permuteKron(3, prod(2*kmax(1:(d-1))+1)));        
+        S{tridx} = Post*kron(S0^nshifts{d}(tridx), speye(prod(2*kmax(1:(d-1))+1)))...
+            *Pre*kron(speye(2*kmax(d)+1), S{tridx});
     end
 end
 
@@ -156,16 +158,16 @@ for tridx=1:ntr
     E = diag([E2 E2 E1]);
 
     %%% regrowth
-    b{tridx} = sparse(3,1,1-E1,N,1); % just applies to Z0
+    b{tridx} = sparse(iF0z,1,1-E1,N,1); % just applies to Z0
 
     %%% Add in diffusion at this point 
     if exist('diff','var')
         for d=1:ngaxes
-            E = E_diff(E,diff{d}(tridx),kmax(d),3*prod(kmax(1:d)+1),dk(d));
+            E = E_diff(E,diff{d}(tridx),kmax(d),3*prod(2*kmax(1:d)+1),dk(d),true);
         end
     else
         % If no diffusion, E is the same for all EPG orders
-        E = spdiags(repmat([E2 E2 E1],[1 kmax+1])',0,N,N);
+        E = spdiags(repmat([E2 E2 E1],[1 prod(2*kmax+1)])',0,N,N);
     end
         
     %%% Composite relax-shift
@@ -178,7 +180,7 @@ F = zeros([N np]); %%<-- records the state after each RF pulse
 
 %%% Initial State
 FF = zeros([N 1]);
-FF(3)=1; % M0 - could be variable
+FF(iF0z)=1; % M0 - could be variable
 
 
 %% Main body of gradient echo sequence, loop over TRs 
@@ -189,11 +191,11 @@ for jj=1:np
    
     %%% Variable order of EPG, speed up calculation
     %+1 because states start at zero
-    [i,j,k,l] = ndgrid(1:3,1:(kmax_per_pulse{1}(jj)+1),1:(kmax_per_pulse{2}(jj)+1),1:(kmax_per_pulse{3}(jj)+1));
-    kidx = sub2ind([3,kmax+1],i(:),j(:),k(:),l(:));
+    [i,j,k,l] = ndgrid(1:3,-kmax_per_pulse{1}(jj):kmax_per_pulse{1}(jj),-kmax_per_pulse{2}(jj):kmax_per_pulse{2}(jj),-kmax_per_pulse{3}(jj):kmax_per_pulse{3}(jj));
+    kidx = sub2ind([3,2*kmax+1],i(:),1+kmax(1)+j(:),1+kmax(2)+k(:),1+kmax(3)+l(:));
     
     %%% Replicate A to make large transition matrix
-    T = kron(speye(prod(kmax+1)), build_T(sparse(3,3),A,0));
+    T = kron(speye(prod(2*kmax+1)), build_T(sparse(3,3),A,0));
     
     %%% Apply flip and store this: splitting these large matrix
     %%% multiplications into smaller ones might help
@@ -206,31 +208,11 @@ for jj=1:np
     %%% Now deal with evolution
     tridx = mod(jj-1,ntr)+1;
     FF(kidx) = SE{tridx}(kidx,kidx)*F(kidx,jj)+b{tridx}(kidx);
-    
-    % Deal with complex conjugate after shift
-    shiftedidx = [];
-    for d=1:ngaxes
-        switch d
-            case 1
-                [i,j,k,l] = ndgrid(1, 1:nshifts{d}(tridx), ...
-                    1:(kmax_per_pulse{2}(jj)+1), 1:(kmax_per_pulse{3}(jj)+1));
-                shiftedidx = union(shiftedidx,sub2ind([3,kmax+1], i,j,k,l));
-            case 2
-                [i,j,k,l] = ndgrid(1, 1:(kmax_per_pulse{1}(jj)+1), ...
-                    1:nshifts{d}(tridx), 1:(kmax_per_pulse{3}(jj)+1));
-                shiftedidx = union(shiftedidx,sub2ind([3,kmax+1], i,j,k,l));
-            case 3
-                [i,j,k,l] = ndgrid(1, 1:(kmax_per_pulse{1}(jj)+1), ...
-                    1:(kmax_per_pulse{2}(jj)+1), 1:nshifts{d}(tridx));
-                shiftedidx = union(shiftedidx,sub2ind([3,kmax+1], i,j,k,l));
-        end
-    end
-    FF(shiftedidx) = conj(FF(shiftedidx)); %<---- F0, etc. comes from F-n so conjugate
 end
 
 
 %%% Return signal
-F0=F(1,:);
+F0=F(iF0,:);
 
 %%% phase demodulate
 F0 = F0(:) .* exp(-1i*phi(:)) *1i;

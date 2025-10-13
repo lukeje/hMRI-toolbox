@@ -1,5 +1,5 @@
-function E = E_diff(E,diff,kmax,N,dk)
-% E = E_diff(E,diff,kmax,N)
+function E = E_diff(E,diff,kmax,N,dk,negk)
+% E = E_diff(E,diff,kmax,N,negk)
 %
 %    Function to build E operator with diffusion effects for standard EPG
 %    3 states per k-value). 
@@ -28,6 +28,12 @@ EdL = Ed(3  ,:);
 
 EdT = full(EdT).*reshape(bDT,1,1,[]);
 EdL = full(EdL).*reshape(bDL,1,1,[]);
+
+% also include negative k
+if exist('negk','var') && negk
+    EdT = cat(3,EdT(:,:,end:-1:2),EdT);
+    EdL = cat(3,EdL(:,:,end:-1:2),EdL);
+end
 
 % Combine them
 Ed = cat(1,EdT,EdL);

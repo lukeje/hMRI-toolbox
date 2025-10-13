@@ -153,7 +153,7 @@ classdef EPG_GRE_nTR_test < matlab.unittest.TestCase
             naxis = EPG_GRE_nTR(theta,phi,TR,T1,T2, 'diff',GdiffAxes);
             ref   = EPG_GRE_nTR(theta,phi,TR,T1,T2, 'diff',GdiffRef);
 
-            assertEqual(testCase, naxis, ref, 'AbsTol',1e-9);
+            assertEqual(testCase, naxis, ref, 'AbsTol',1e-12);
         end
         
     end
