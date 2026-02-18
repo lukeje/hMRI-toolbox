@@ -42,6 +42,25 @@ switch protocol
 
         phase_cycle = @(npulse,phi0,TR1,TR2) RF_phase_cycle_NehrkeSimplifiedError(npulse,phi0,[1,TR2/TR1]);
 
+    case {"IronSleep7Tv1h"}
+        FA      = [55,  55]; % Flip angles [deg]
+        TR      = [25, 125]; % [ms]
+
+        phis    = 129.3;        % [deg]
+
+        B1range = (30:5:140)'/100; % convert such that 100% = 1
+        dur1 = 7.2; % ms
+        Gdur{1} = [1,dur1/4,dur1/2,dur1/4]; % [ms]
+        Gamp{1} = [26,30,-30,30];           % [mT/m]
+        dur2 = 36;  % ms
+        Gdur{2} = [5,dur2/4,dur2/2,dur2/4]; % [ms]
+        Gamp{2} = Gamp{1};           % [mT/m]
+
+        % Get tissue parameters
+        [T1range,T2range,D] = tissueparams("invivo7T");
+
+        phase_cycle = @(npulse,phi0,TR1,TR2) RF_phase_cycle_NehrkeSimplified(npulse,phi0,1,5);
+
     case {"KRK", "IronSleep7Tv1g"}
         FA      = [55,  55]; % Flip angles [deg]
         TR      = [25, 125]; % [ms]
@@ -61,7 +80,7 @@ switch protocol
 
         phase_cycle = @(npulse,phi0,TR1,TR2) RF_phase_cycle_NehrkeSimplifiedError(npulse,phi0,[TR1/TR2,1]);
 
-case "IronSleep7Tv1f"
+    case "IronSleep7Tv1f"
         FA      = [55,  55]; % Flip angles [deg]
         TR      = [25, 125]; % [ms]
 
