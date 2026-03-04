@@ -81,7 +81,9 @@ np = length(theta);
 kall = zeros(1,3); % up to 3 gradient axes
 allshifts = cell(1,ngaxes);
 for d=1:ngaxes
-    allshifts{d} = repmat(nshifts{d},1,ceil(np/ntr)); % all shifts if we always complete the TR cycle
+    %TODO: probably need to think harder about this for the cases where
+    %      nshifts is negative...
+    allshifts{d} = repmat(abs(nshifts{d}),1,ceil(np/ntr)); % all shifts if we always complete the TR cycle
     allshifts{d} = allshifts{d}(1:np);   % all the shifts actually performed
     kall(d) = sum(allshifts{d}(1:np-1)); % ignore last shift as we break after last pulse
 end
@@ -141,6 +143,11 @@ for tridx=1:ntr
         % pre:  g2 x g1 x spin -I(g2)xP(g1,spin)-> g2 x spin x g1
         % post: g2 x spin x g1 -I(g2)xP(spin,g1)-> g2 x g1 x spin
         S0 = EPG_shift_matrices(kmax(d),true);
+        if nshifts<0
+            S0 = S0';
+        elseif nshifts==0
+            S0 = speye(size(S0));
+        end
         Pre   = kron(speye(2*kmax(d)+1), permuteKron(prod(2*kmax(1:(d-1))+1), 3));
         Post  = kron(speye(2*kmax(d)+1), permuteKron(3, prod(2*kmax(1:(d-1))+1)));        
         S{tridx} = Post*kron(S0^nshifts{d}(tridx), speye(prod(2*kmax(1:(d-1))+1)))...
@@ -269,7 +276,6 @@ function [nshifts,dk] = computeshifts(diff)
     if any(G0~=0)
         deltaG0 = min(abs(G0));
         nshifts = G0/deltaG0;
-        assert(all(nshifts>=0), 'negative gradient moments not implemented')
 
         % allow for small numerical imprecision
         assert(all(abs(nshifts-round(nshifts))<2*eps(G0)), 'gradient moments per TR are not all integer multiples of the shortest non-zero moment')

@@ -2,7 +2,9 @@ function hmri_corr_afi()
 
 %% Input parameters
 % Get sequence and tissue parameters
-protocol = "ADPCA";
+protocol = "testDelB0";
+
+gamma = 267.522; % rad/(ms mT)
 
 axisbalance = [];
 switch protocol
@@ -61,6 +63,33 @@ switch protocol
 
         phase_cycle = @(npulse,phi0,TR1,TR2) RF_phase_cycle_NehrkeSimplifiedError(npulse,phi0,[TR1/TR2,1]);
 
+    case {"testDelB0"}
+        FA      = [55,  55]; % Flip angles [deg]
+        TR      = [25, 125]; % [ms]
+
+        phis    = 36.0;        % [deg]
+
+        B1range = (30:5:140)'/100; % convert such that 100% = 1
+        dur1 = 7.2; % ms
+        Gdur{1} = [1,dur1/4,dur1/2,dur1/4]; % [ms]
+        Gamp{1} = [26,30,-30,30];           % [mT/m]
+        dur2 = 36;  % ms
+        Gdur{2} = [TR(2)/TR(1),dur2/4,dur2/2,dur2/4]; % [ms]
+        Gamp{2} = Gamp{1};                  % [mT/m]
+
+        % annoying requirement that gradient moments need to agree
+        %TODO: check that diffusion still valid!
+        DelB0 = -gamma*0.05; % Hz/m
+
+        for n=1:2
+            [Gdur{n},Gamp{n}] = addDelB0(DelB0,Gdur{n},Gamp{n},TR(n));
+        end
+
+        % Get tissue parameters
+        [T1range,T2range,D] = tissueparams("invivo7T");
+
+        phase_cycle = @(npulse,phi0,TR1,TR2) RF_phase_cycle_NehrkeSimplifiedError(npulse,phi0,[TR1/TR2,1]);
+
 case "IronSleep7Tv1f"
         FA      = [55,  55]; % Flip angles [deg]
         TR      = [25, 125]; % [ms]
@@ -71,7 +100,6 @@ case "IronSleep7Tv1f"
         amp = 26; % mT/m
         px = 4e-3; % m
         spperpx = 6*pi;
-        gamma = 267.522; % rad/(ms mT)
         dur = spperpx/(px*gamma*amp);
 
         B1range = (30:5:140)'/100; % convert such that 100% = 1
@@ -280,6 +308,23 @@ FAmap = acosd((r*n-1)./(n-r)); % Eq. (6) in Yarnykh, MRM (2007)
 
 % relative B1 map
 B1map = FAmap/nomFA;
+
+end
+
+% not compatible with axis balance!
+function [Gdur,Gamp] = addDelB0(DelB0,Gdur,Gamp,TR)
+
+% add constant gradient while readout/spoiler, etc. is playing
+for n=1:length(Gamp)
+    Gamp(n) = Gamp(n) + DelB0;
+end
+
+% also add gradient to any deadtime at the end of the TR
+gradend = sum(Gdur);
+if gradend<TR
+    Gdur = [Gdur(:); TR-gradend];
+    Gamp = [Gamp(:); DelB0];
+end
 
 end
 
