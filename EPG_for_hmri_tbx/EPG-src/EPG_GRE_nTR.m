@@ -137,17 +137,14 @@ iF0z = sub2ind([3,2*kmax+1],3,kmax(1)+1,kmax(2)+1,kmax(3)+1);
 S = cell(1,ntr);
 for tridx=1:ntr
     S0 = EPG_shift_matrices(kmax(1),true);
-    S{tridx} = S0^nshifts{1}(tridx);
+    S{tridx} = scale_shiftmatrix(S0, nshifts{1}(tridx));
     for d=2:ngaxes
+        S0 = EPG_shift_matrices(kmax(d),true);
+        S0 = scale_shiftmatrix(S0, nshifts{d}(tridx));
+
         % remember to permute vectors so that S0 operates on the correct g2 x spin dimension
         % pre:  g2 x g1 x spin -I(g2)xP(g1,spin)-> g2 x spin x g1
         % post: g2 x spin x g1 -I(g2)xP(spin,g1)-> g2 x g1 x spin
-        S0 = EPG_shift_matrices(kmax(d),true);
-        if nshifts<0
-            S0 = S0';
-        elseif nshifts==0
-            S0 = speye(size(S0));
-        end
         Pre   = kron(speye(2*kmax(d)+1), permuteKron(prod(2*kmax(1:(d-1))+1), 3));
         Post  = kron(speye(2*kmax(d)+1), permuteKron(3, prod(2*kmax(1:(d-1))+1)));        
         S{tridx} = Post*kron(S0^nshifts{d}(tridx), speye(prod(2*kmax(1:(d-1))+1)))...
@@ -288,4 +285,18 @@ function [nshifts,dk] = computeshifts(diff)
     % total dephasing between two EPG states
     gmT = 42.58e6 * 1e-3 * 2*pi; % rad s^-1 mT^-1
     dk = gmT*deltaG0*1e-3;
+end
+
+% scale the shift matrices by the number of k-space shifts in one TR
+% take special account of negative shifts
+function S = scale_shiftmatrix(S,nshifts)
+
+if nshifts<0
+    S = (S')^nshifts;
+elseif nshifts==0
+    S = speye(size(S));
+else
+    S = S^nshifts;
+end
+
 end

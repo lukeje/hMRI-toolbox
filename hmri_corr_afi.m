@@ -2,7 +2,7 @@ function hmri_corr_afi()
 
 %% Input parameters
 % Get sequence and tissue parameters
-protocol = "testDelB0";
+protocol = "ADPCA";
 
 gamma = 267.522; % rad/(ms mT)
 
@@ -37,7 +37,8 @@ switch protocol
         Gdur{2} = [1,dur2/4,dur2/2,dur2/4]; % [ms]
         Gamp{2} = Gamp{1}; % [mT/m]
 
-        axisbalance = {[1,1,1,1], [0,1,1,1]};
+        % spoiler on just one axis, diffusion gradients on all three axes
+        axisbalance = {[1,1,1,1], [0,sqrt(2),sqrt(2),sqrt(2)]};
 
         % Get tissue parameters
         [T1range,T2range,D] = tissueparams("invivo7T");
@@ -78,7 +79,7 @@ switch protocol
         Gamp{2} = Gamp{1};                  % [mT/m]
 
         % annoying requirement that gradient moments need to agree
-        %TODO: check that diffusion still valid!
+        %TODO: check that diffusion still valid for negative gradients!
         DelB0 = -gamma*0.05; % Hz/m
 
         for n=1:2
