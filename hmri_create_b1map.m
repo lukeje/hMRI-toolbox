@@ -146,15 +146,12 @@ TR2 = b1map_params.b1acq.TR2TR1ratio;
 alphanom = b1map_params.b1acq.alphanom; % degrees
 
 % compute B1 map
-FAfun=@(r,n) acosd((r*n-1)./(n-r)); % Eq. (6) in Yarnykh, MRM (2007)
-r=Y2./Y1;
-n=b1map_params.b1acq.TR2TR1ratio;
-FAmap = FAfun(r,n); % flip angle map in degrees
+B1map = hmri_calc_AFI_B1map(Y1,Y2,b1map_params.b1acq.TR2TR1ratio,alphanom);
 
 % print warning if images might have been input in the wrong order
 % This is determined by comparing the number of complex values in the B1
 % map to the number obtained with the images in reverse order.
-if nnz(imag(FAmap))>nnz(imag(FAfun(1./r,n)))
+if nnz(imag(B1map)) > nnz(imag(hmri_calc_AFI_B1map(Y2,Y1,b1map_params.b1acq.TR2TR1ratio,alphanom)))
     warn_message = sprintf(...
         ['unusually many complex values detected in the AFI \n'...
         'B1 map. Please perform a visual check of the output B1 map and \n'...
@@ -168,17 +165,16 @@ if nnz(imag(FAmap))>nnz(imag(FAfun(1./r,n)))
     warning('hmri:afiTooManyImag',warn_message) %#ok<SPWRN> 
 end
 
-% normalise B1 map
 % Take the real part because the imaginary component is erroneous and
 % should only appear in background voxels. Too many would be a sign of
 % incorrect file order.
-B1map_norm = real(FAmap)*100/alphanom;
+B1map = real(B1map);
 
 % masking; mask is written out to folder of B1ref
 mask = mask_for_B1(spm_vol(B1ref),b1map_params.b1mask);
 
 % smoothed map
-smB1map_norm = smoothB1(V1,B1map_norm,b1map_params.b1proc.B1FWHM,mask);
+smB1map_norm = smoothB1(V1,B1map,b1map_params.b1proc.B1FWHM,mask);
 
 % save output images
 VB1 = V1;
