@@ -238,12 +238,23 @@ small_angle_approx.values = { true false };
 small_angle_approx.val    = { false };
 
 % ---------------------------------------------------------------------
+% Optimally plot residuals
+% ---------------------------------------------------------------------
+plot_residuals        = cfg_menu;
+plot_residuals.tag    = 'plot_residuals';
+plot_residuals.name   = 'Plot residuals';
+plot_residuals.help   = {'Should the residual errors be plotted for QA?'};
+plot_residuals.labels = { 'yes', 'no' };
+plot_residuals.values = { true false };
+plot_residuals.val    = { false };
+
+% ---------------------------------------------------------------------
 % Compute correction factors for imperfect spoiling
 % ---------------------------------------------------------------------
 imperf_spoil         = cfg_exbranch;
 imperf_spoil.tag     = 'imperf_spoil_afisim';
 imperf_spoil.name    = 'Imperfect Spoiling Calc. with AFI Correction';
-imperf_spoil.val     = { outdir prot_name seq_params afi_params tissue_params B1range small_angle_approx };
+imperf_spoil.val     = { outdir prot_name seq_params afi_params tissue_params B1range small_angle_approx plot_residuals };
 imperf_spoil.help    = {'Given input info about the sequence settings and expected tissue properties, ' ...
     'this module computes coefficients required to correct for imperfect spoiling in the FLASH volumes ' ...
     'using the method proposed by Preibisch & Deichmann, MRM 2009, 61(1):125'};

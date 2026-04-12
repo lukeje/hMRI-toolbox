@@ -190,4 +190,26 @@ results_filename = fullfile(job.outdir,[strrep(job.prot_name,' ',''),'.json']);
 
 spm_jsonwrite(results_filename{1},Results,struct('indent','\t'));
 
+if job.plot_residuals
+    figure
+    for n=1:nT2
+        subplot(2, nT2, n)
+        surf(B1range, T1range, squeeze(T1_App_Err(:,n,:)))
+        xlabel("B1 / p.u.")
+        ylabel("T1 / ms")
+        zlabel(["Relative apparent", "T1 error / %"])
+        title(sprintf("Relative apparent T1 error, T2 = %f ms", T2range(n)))
+    end
+
+    for n=1:nT2
+        subplot(2, nT2, n+nT2)
+        surf(B1range, T1range, squeeze(T1_Corr_Err(:,n,:)))
+        xlabel("B1 / p.u.")
+        ylabel("T1 / ms")
+        zlabel(["Relative corrected", "T1 error / %"])
+        title(sprintf("Relative Corrected T1 error, T2 = %.1f ms", T2range(n)))
+
+    end
+end
+
 end
