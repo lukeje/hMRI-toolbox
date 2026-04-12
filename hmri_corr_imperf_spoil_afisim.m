@@ -134,44 +134,36 @@ end
 % 2./ Fitting T1=A(B1eff)+B(B1eff)*T1app
 %*************************************************%%
 hmri_log(sprintf('\t-------- Determining Coefficients'));
-ABcoeff = zeros(2, nB1);
-T1app = zeros(nB1, nT1, nT2);
+T1app = zeros(nT1, nT2, nB1);
+B1app = zeros(nT1, nT2, nB1);
 for B1val = 1:nB1
-
-    B1app = 0.01*hmri_calc_AFI_B1map(AFI1(:,:,B1val),AFI2(:,:,B1val),TR_afi(2)/TR_afi(1),FA_afi);
+    B1app(:,:,B1val) = 0.01*hmri_calc_AFI_B1map(AFI1(:,:,B1val),AFI2(:,:,B1val),TR_afi(2)/TR_afi(1),FA_afi);
 
     % Calculate T1app, accounting for B1+
-    T1app(B1val,:,:) = 1./hmri_calc_R1(...
-        struct('data',S1(:,:,B1val),'fa',d2r(FA(1)),'TR',TR(1),'B1',B1app),...
-        struct('data',S2(:,:,B1val),'fa',d2r(FA(2)),'TR',TR(2),'B1',B1app),...
+    T1app(:,:,B1val) = 1./hmri_calc_R1(...
+        struct('data',S1(:,:,B1val),'fa',d2r(FA(1)),'TR',TR(1),'B1',B1app(:,:,B1val)),...
+        struct('data',S2(:,:,B1val),'fa',d2r(FA(2)),'TR',TR(2),'B1',B1app(:,:,B1val)),...
         job.small_angle_approx);
-
-    % build matrix X with column of ones and column of T1app
-    X = ones([nT1*nT2 2]);
-    X(:,2) = T1app(B1val,:);
-    ABcoeff(:, B1val) = pinv(X)*repmat(T1range, [1 nT2]).';
-
 end
 
 %% *********************************************************%%
 % 3./ Fitting A=P(B1eff) and B=P(B1eff) with 2nd degree polynomial
 %***********************************************************%%
-polyCoeffA = polyfit(B1range, ABcoeff(1,:), 2);
-polyCoeffB = polyfit(B1range, ABcoeff(2,:), 2);
-
+X = [B1app(:).^2, B1app(:), ones(nT1*nT2*nB1,1)]; % quadratic polynomial in B1app argument
+X = [X, X.*T1app(:)]; % linear polynomial in T1app argument
+coeff = X\repmat(T1range(:),nT2*nB1,1);
+polyCoeffA = coeff(1:end/2);
+polyCoeffB = coeff(end/2+1:end);
 
 %% *********************************************************%%
 % 4./ Compute RMSE on T1app and T1
 %***********************************************************%%
-T1app = T1app(:,:);
-T1corr = repmat(polyval(polyCoeffA, B1range).',[1 nT1*nT2])+ repmat(polyval(polyCoeffB, B1range).',[1 nT1*nT2]).*T1app;
-T1_Corr_Err = (T1corr - repmat(T1range, [nB1 nT2]))./repmat(T1range, [nB1 nT2])*100;
-T1_App_Err = (T1app - repmat(T1range, [nB1 nT2]))./repmat(T1range, [nB1 nT2])*100;
+T1corr = polyval(polyCoeffA, B1app) + polyval(polyCoeffB, B1app).*T1app;
+T1_Corr_Err = 100*(T1corr - T1range(:))./T1range;
+T1_App_Err  = 100*(T1app  - T1range(:))./T1range;
 
-
-RMSE_Corr = sqrt(mean(T1_Corr_Err(:).^2));
-RMSE_App = sqrt(mean(T1_App_Err(:).^2));
-
+RMSE_Corr = rms(T1_Corr_Err(:));
+RMSE_App  = rms(T1_App_Err(:));
 
 %% *********************************************************%%
 % 5./ Write parameters and correction factors in a json file
@@ -189,8 +181,8 @@ Results.ToCopy{1}    =['hmri_def.MPMacq_set.names{NN} = ''' job.prot_name ''';' 
 Results.ToCopy{end+1}=['hmri_def.MPMacq_set.tags{NN}  = ''' strrep(job.prot_name,' ','') ''';'];
 Results.ToCopy{end+1}=['hmri_def.MPMacq_set.vals{NN}  = [' num2str([TR FA]) '];'];
 Results.ToCopy{end+1}=['hmri_def.imperfectSpoilCorr.' strrep(job.prot_name,' ','') '.tag = ''' strrep(job.prot_name,' ','') ''';' ];
-Results.ToCopy{end+1}=['hmri_def.imperfectSpoilCorr.' strrep(job.prot_name,' ','') '.P2_a = [' num2str(round(polyCoeffA,4)) '];'];
-Results.ToCopy{end+1}=['hmri_def.imperfectSpoilCorr.' strrep(job.prot_name,' ','') '.P2_b = [' num2str(round(polyCoeffB,4)) '];'];
+Results.ToCopy{end+1}=['hmri_def.imperfectSpoilCorr.' strrep(job.prot_name,' ','') '.P2_a = [' num2str(round(polyCoeffA',4)) '];'];
+Results.ToCopy{end+1}=['hmri_def.imperfectSpoilCorr.' strrep(job.prot_name,' ','') '.P2_b = [' num2str(round(polyCoeffB',4)) '];'];
 Results.ToCopy{end+1}=['hmri_def.imperfectSpoilCorr.' strrep(job.prot_name,' ','') '.small_angle_approx = ' mat2str(job.small_angle_approx) ';'];
 Results.ToCopy{end+1}=['hmri_def.imperfectSpoilCorr.' strrep(job.prot_name,' ','') '.enabled = hmri_def.imperfectSpoilCorr.enabled;'];
 
