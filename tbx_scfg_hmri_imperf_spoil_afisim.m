@@ -187,14 +187,14 @@ Gamp2.help = {['Specify the amplitude (in mT/m) of the spoiling gradient ',...
 Gdur1 = Gdur;
 Gdur1.tag = [Gdur.tag '_1'];
 Gdur1.name = [Gdur.name ' of first AFI TR'];
-Gdur1.val  = {450/40};
+Gdur1.val  = {18};
 Gdur1.help = {['Specify the duration (in ms) of the spoiler gradient  ',...
                'of the first AFI TR. Note here a vector could be '...
                'included to account for the full effect of the readout, e.g. multiple echoes ']};
 Gdur2 = Gdur;
 Gdur2.tag = [Gdur.tag '_2'];
 Gdur2.name = [Gdur.name ' of second AFI TR'];
-Gdur2.val  = {2250/40};
+Gdur2.val  = {90};
 Gdur2.help = {['Specify the duration (in ms) of the spoiler gradient  ',...
                'of the second AFI TR. Note here a vector could be '...
                'included to account for the full effect of the readout, e.g. multiple echoes ']};
