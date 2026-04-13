@@ -160,7 +160,7 @@ FA_AFI.num     = [1 1];
 FA_AFI.help    = {'Specify the flip angle (in deg) of the AFI acquisition'};
 
 Phi0_AFI = Phi0;
-Phi0_AFI.val  = {50};
+Phi0_AFI.val  = {39};
 Phi0_AFI.help = {'Specify the RF Spoiling increment (in deg) of the AFI acquisitions'};
 
 Phi0_type        = cfg_menu;
@@ -174,27 +174,27 @@ Phi0_type.val    = { 'standard' };
 Gamp1 = Gamp;
 Gamp1.tag  = [Gamp.tag '_1'];
 Gamp1.name = [Gamp.name ' of first AFI TR'];
-Gamp1.val  = {40};
+Gamp1.val  = {25};
 Gamp1.help = {['Specify the amplitude (in mT/m) of the spoiling gradient ',...
                 'of the first AFI TR']};
 Gamp2 = Gamp;
 Gamp2.tag = [Gamp.tag '_2'];
 Gamp2.name = [Gamp.name ' of second AFI TR'];
-Gamp2.val  = {40};
+Gamp2.val  = {25};
 Gamp2.help = {['Specify the amplitude (in mT/m) of the spoiling gradient ',...
                 'of the second AFI TR']};
 
 Gdur1 = Gdur;
 Gdur1.tag = [Gdur.tag '_1'];
 Gdur1.name = [Gdur.name ' of first AFI TR'];
-Gdur1.val  = {1};
+Gdur1.val  = {450/40};
 Gdur1.help = {['Specify the duration (in ms) of the spoiler gradient  ',...
                'of the first AFI TR. Note here a vector could be '...
                'included to account for the full effect of the readout, e.g. multiple echoes ']};
 Gdur2 = Gdur;
 Gdur2.tag = [Gdur.tag '_2'];
 Gdur2.name = [Gdur.name ' of second AFI TR'];
-Gdur2.val  = {5};
+Gdur2.val  = {2250/40};
 Gdur2.help = {['Specify the duration (in ms) of the spoiler gradient  ',...
                'of the second AFI TR. Note here a vector could be '...
                'included to account for the full effect of the readout, e.g. multiple echoes ']};
