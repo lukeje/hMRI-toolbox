@@ -76,14 +76,14 @@ for T1val = 1 : nT1 % loop over T1 values, can use parfor for speed
 
     T1 = T1range(T1val);
 
-    npulse = floor(15*T1/min(TR));   % ensure steady state signal
+    npulse = floor(15*T1/min(TR)); % ensure steady state signal
     phi_train = RF_phase_cycle(npulse,Phi0); % phase of the RF pulses
 
-    npulse_afi = floor(15*T1/sum(TR_afi));   % ensure steady state signal
+    npulse_afi = floor(15*T1/sum(TR_afi)); % ensure steady state signal
     npulse_afi = npulse_afi + (mod(npulse_afi,2)); % ensure the number of afi TRs is even
-    switch lower(Phi0_type)
+    switch lower(Phi0_type) % phase of the RF pulses
         case 'standard'
-            phi_train_afi = RF_phase_cycle(npulse_afi,Phi0_afi); % phase of the RF pulses
+            phi_train_afi = RF_phase_cycle(npulse_afi,Phi0_afi);
         case 'nehrke'
             if TR1>TR2
                 N1 = TR1/TR2;
@@ -94,9 +94,9 @@ for T1val = 1 : nT1 % loop over T1 values, can use parfor for speed
             else
                 error("AFI TRs should not be equal!")
             end
-
-            if mod(N1,1)~=0 || mod(N2,1) ~=0
-                warning("This function expects that the larger AFI TR is an integer multiple of the smaller TR!")
+            if mod(N1,1)~=0 || mod(N2,1)~=0 % check whether N1 and N2 are integers
+                error(join(["This function expects that the larger AFI TR is an integer multiple of the smaller TR!",...
+                    "Using non-integer TR ratio will give rise to incomplete RF spoiling in the longer TR."]))
             end
             phi_train_afi = RF_phase_cycle_Nehrke(npulse_afi,Phi0_afi,N1,N2); % phase of the RF pulses
     end
