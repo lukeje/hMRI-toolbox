@@ -638,8 +638,8 @@ for p = 1:dm(3)
         if ISC.enabled&&~isempty(f_T)
             % MFC: We do have P2_a and P2_b parameters for this sequence
             % => T1 = A(B1) + B(B1)*T1app (see Preibisch 2009)
-            A_ISC=ISC.P2_a(1)*f_T.^2 + ISC.P2_a(2)*f_T + ISC.P2_a(3);
-            B_ISC=ISC.P2_b(1)*f_T.^2 + ISC.P2_b(2)*f_T + ISC.P2_b(3);
+            A_ISC=polyval(ISC.P2_a, f_T);
+            B_ISC=polyval(ISC.P2_b, f_T);
             R1 = R1_unc./(A_ISC.*R1_unc+B_ISC);
         else
             R1 = R1_unc;
