@@ -160,8 +160,8 @@ polyCoeffB = coeff(end/2+1:end);
 % 4./ Compute RMSE on T1app and T1
 %***********************************************************%%
 T1corr = polyval(polyCoeffA, B1app) + polyval(polyCoeffB, B1app).*T1app;
-T1_Corr_Err = 100*(T1corr - T1range(:))./T1range;
-T1_App_Err  = 100*(T1app  - T1range(:))./T1range;
+T1_Corr_Err = 100*(T1corr - T1range(:))./T1range(:);
+T1_App_Err  = 100*(T1app  - T1range(:))./T1range(:);
 
 RMSE_Corr = rms(T1_Corr_Err(:));
 RMSE_App  = rms(T1_App_Err(:));
