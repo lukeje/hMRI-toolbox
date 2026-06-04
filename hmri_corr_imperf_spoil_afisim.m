@@ -19,11 +19,11 @@ hmri_log(sprintf('\t--- Calculating Imperfect Spoiling Correction Coefficients -
 %*************************************************%%
 %%
 % Get sequence parameters
-FA      =   job.seq_params.FA_deg;              % Flip angles [deg]
-TR      =   job.seq_params.TR_ms;               % [ms]
-Phi0    =   job.seq_params.Phi0_deg;            % [deg]
-Gdur    =   job.seq_params.Gdur_ms;             % [ms]
-Gamp    =   job.seq_params.Gamp_mT_per_m;       % [mT/m]
+FA      =   job.seq_params.FA_deg;             % Flip angles [deg]
+TR      =   job.seq_params.TR_ms;              % [ms]
+Phi0    =   job.seq_params.Phi0_deg;           % [deg]
+Gdur    =   job.seq_params.Gdur_ms;            % [ms]
+Gamp    =   job.seq_params.Gamp_mT_per_m;      % [mT/m]
 
 B1range =   job.B1range_percent/100; % convert such that 100% = 1
 
@@ -31,25 +31,28 @@ assert(length(Gdur) == length(Gamp), 'The vectors of gradient durations and ampl
 assert(all(sum(Gdur)<=TR), 'The total duration of the gradients cannot exceed TR!')
 
 % Get AFI parameters
-FA_afi      = job.afi_params.FA_deg;             % Flip angles [deg]
-TR_afi      = job.afi_params.TR_ms;              % [ms]
-Phi0_afi    = job.afi_params.Phi0_deg;           % [deg]
-Phi0_type   = job.afi_params.rf_spoiling_type;
-Gdur_afi{1} = job.afi_params.Gdur_ms_1;          % [ms]
-Gamp_afi{1} = job.afi_params.Gamp_mT_per_m_1;    % [mT/m]
-Gdur_afi{2} = job.afi_params.Gdur_ms_2;          % [ms]
-Gamp_afi{2} = job.afi_params.Gamp_mT_per_m_2;    % [mT/m]
+FA_afi      = job.afi_params.FA_deg;           % Flip angles [deg]
+TR_afi      = job.afi_params.TR_ms;            % [ms]
+Phi0_afi    = job.afi_params.Phi0_deg;         % [deg]
+Phi0_type   = job.afi_params.rf_spoiling_type; % 'standard' or 'Nehrke'
+Gdur_afi{1} = job.afi_params.Gdur_ms_1;        % [ms]
+Gamp_afi{1} = job.afi_params.Gamp_mT_per_m_1;  % [mT/m]
+Gdur_afi{2} = job.afi_params.Gdur_ms_2;        % [ms]
+Gamp_afi{2} = job.afi_params.Gamp_mT_per_m_2;  % [mT/m]
 
 assert(TR_afi(1)~=TR_afi(2), "AFI TRs cannot be equal!")
 
 %% Get tissue parameters
-T1range     = job.tissue_params.T1range_ms;     %[ms]
-T2range     = job.tissue_params.T2range_ms;     % [ms]
-D           = job.tissue_params.D_um2_per_ms;   % [um^2/ms]
+T1range     = job.tissue_params.T1range_ms;    % [ms]
+T2range     = job.tissue_params.T2range_ms;    % [ms]
+D           = job.tissue_params.D_um2_per_ms;  % [um^2/ms]
 
 %% Build structure "diff" to account for diffusion effect
 % Note we include any deadtime during each TR so that diffusion effects
-% are calculated correctly
+% are calculated correctly. Deadtime is added at the beginning of the TR
+% so that the spoiler gradients are played at the end of each TR.
+% As TR can be different for each acquisition, we create a separate
+% structure for each one
 for n=2:-1:1 % go backwards to avoid matlab warning about preallocation
     diff(n).D   = D*1e-9;
     diff(n).G   = [0; Gamp(:)];
@@ -72,7 +75,7 @@ S2   = zeros([nT1 nT2 nB1]);
 AFI1 = zeros([nT1 nT2 nB1]);
 AFI2 = zeros([nT1 nT2 nB1]);
 hmri_log(sprintf('\t-------- Simulating signals'));
-for T1val = 1 : nT1 % loop over T1 values, can use parfor for speed
+for T1val = 1:nT1 % loop over T1 values, can use parfor for speed
 
     T1 = T1range(T1val);
 
@@ -80,17 +83,17 @@ for T1val = 1 : nT1 % loop over T1 values, can use parfor for speed
     phi_train = RF_phase_cycle(npulse,Phi0); % phase of the RF pulses
 
     npulse_afi = floor(15*T1/sum(TR_afi)); % ensure steady state signal
-    npulse_afi = npulse_afi + (mod(npulse_afi,2)); % ensure the number of afi TRs is even
+    npulse_afi = npulse_afi + mod(npulse_afi,2); % ensure the number of afi TRs is even
     switch lower(Phi0_type) % phase of the RF pulses
         case 'standard'
             phi_train_afi = RF_phase_cycle(npulse_afi,Phi0_afi);
         case 'nehrke'
-            if TR1>TR2
-                N1 = TR1/TR2;
+            if TR_afi(1)>TR_afi(2)
+                N1 = TR_afi(1)/TR_afi(2);
                 N2 = 1;
-            elseif TR1<TR2
+            elseif TR_afi(1)<TR_afi(2)
                 N1 = 1;
-                N2 = TR2/TR1;
+                N2 = TR_afi(2)/TR_afi(1);
             else
                 error("AFI TRs should not be equal!")
             end
@@ -101,10 +104,10 @@ for T1val = 1 : nT1 % loop over T1 values, can use parfor for speed
             phi_train_afi = RF_phase_cycle_Nehrke(npulse_afi,Phi0_afi,N1,N2); % phase of the RF pulses
     end
 
-    for T2val = 1 : nT2
+    for T2val = 1:nT2
         T2 = T2range(T2val);
 
-        for B1val = 1 : nB1  % loop over B1+ values
+        for B1val = 1:nB1  % loop over B1+ values
             B1eff = B1range(B1val);
 
             %% Calculate MPM signals via EPG:
@@ -127,8 +130,6 @@ for T1val = 1 : nT1 % loop over T1 values, can use parfor for speed
         end
     end
 end
-
-
 
 %% ***********************************************%%
 % 2./ Fitting T1=A(B1eff)+B(B1eff)*T1app
