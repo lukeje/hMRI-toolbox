@@ -34,9 +34,21 @@ IP.et{2} = b1map_params.b0acq.longTE;
 IP.maskbrain = b1map_params.b1proc.b0maskbrain;
 IP.ajm = pm_defs.DO_JACOBIAN_MODULATION;
 IP.blipdir = b1map_params.b1acq.blipDIR;
+assert(any(IP.blipdir==[+1,-1]), 'blipdir must be +1 or -1!')
 IP.tert = b1map_params.b1acq.tert;
 %IP.epifm = 0; % already in the default IP
-%IP.pedir = 2; % already in the default IP ([1] A>>P, [2] R>>L) 
+
+% direction in which distortions should be corrected determines which
+% FieldMap function is called. BIDS allows this string to have a '-' to
+% denote phase encoding direction, which we here strip.
+switch lower(erase(b1map_params.b1acq.distortedDIR,'-'))
+    case {'x','i'}
+        distorted_direction = 'xy';
+    case {'y','j'}
+        distorted_direction = '';
+    case {'z','k'}
+        distorted_direction = 'yz';
+end
 
 % default unwarp parameters (uflags) and a few derived from the metadata 
 IP.uflags.iformat = b1map_params.b0acq.iformat; % input format = 'PM'
@@ -71,10 +83,6 @@ IP.vdmP = [];
 %--------------------------------------------------------------------------
 n_fms = size(fmfnam,1);
 switch n_fms
-%     case 4  % real, imaginary pairs
-%         for i = 1:n_fms
-%             IP.P{i} = spm_vol(fmfnam(i,:));
-%         end
     case 2  % precalculated phase map and magnitude image
         % first rescale phase map between +/-pi
         scphase = FieldMap('Scale', fmfnam(1,:));
@@ -85,16 +93,6 @@ switch n_fms
         end
         IP.P{1} = spm_vol(scphase.fname);
         IP.P{2} = spm_vol(fmfnam(2,:));
-%     case 1  % precalculated and unwrapped Hz map
-%         IP.pP = spm_vol(fmfnam);
-%         IP.fm.fpm = spm_read_vols(IP.pP);
-%         IP.fm.jac = pm_diff(IP.fm.fpm,2);
-%         if isfield(IP,'P') & ~isempty(IP.P{1})
-%             IP.P = cell(1,4);
-%         end
-%         if isfield(pm_defs,'magfieldmap')
-%             IP.fmagP=pm_defs.magfieldmap;
-%         end
     otherwise
         error('Funny number of input fieldmap images')
 end
@@ -134,32 +132,25 @@ end
 [IP.vdm, IP.vdmP] = FieldMap('FM2VDM',IP);
 
 %--------------------------------------------------------------------------
-% Match voxel displacement map to distorted anatomical image
-% Outputs -> mag_NAME-OF-FIRST-INPUT-IMAGE.nii
-%--------------------------------------------------------------------------
-% To DO!!!
-
-%--------------------------------------------------------------------------
 % Match voxel displacement map to distorted anatomical image and 
 % then unwarp the distorted anatomical image
 %--------------------------------------------------------------------------
 IP.epiP = spm_vol(anatfnam);
 if b1map_params.b1proc.match_vdm
-    IP.vdmP = FieldMap('MatchVDMxy',IP); 
+    IP.vdmP = hmri_create_FieldMap(['MatchVDM',distorted_direction],IP); 
     % write forward warped magnitude image (i.e. magnitude image from
     % fieldmap acquisition, coregistered & resliced to anat image)
     % wfmag_NAME-OF-ANAT-IMAGE.nii. Result is written directly in output
     % directory, no need to movefile. Also coregister (not reslice) vdm5_*
     % image with it (IP.vdmP.fname = vdm5_* file name). 
 end
-IP.uepiP = FieldMap('UnwarpEPIxy',IP);
+IP.uepiP = hmri_create_FieldMap(['UnwarpEPI',distorted_direction],IP);
 unwarp_info = sprintf('Unwarped image:echo time difference=%2.2fms, EPI readout time=%2.2fms, Jacobian=%d',IP.uflags.etd, IP.tert,IP.ajm);    
 % write uNAME-OF-ANAT-IMAGE.nii in output directory, no need to movefile.
 unwarp_img{1} = FieldMap('Write',IP.epiP,IP.uepiP.dat,'u',IP.epiP.dt(1),unwarp_info);
 
 % set second fmap_img output to the coregistered VDM
 fmap_img{2} = IP.vdmP;
-
 
 %----------------------------------------------------------------------
 % Unwarp the other images, assumed to be in same space as anatomical
