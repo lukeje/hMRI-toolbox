@@ -5,20 +5,29 @@
 % Simplified by choosing offset so that constant phase offsets in each TR are zero
 % This implementation intentionally contains an error in order to fit correction 
 % factors for data collected with this scheme rather than the intended scheme
-function phi = RF_phase_cycle_NehrkeSimplifiedError(npulse,phi0,scale_firsttr_secondtr)
+function phi = RF_phase_cycle_NehrkeSimplifiedError(npulse,phi0,TR1,TR2)
 
 phi0 = deg2rad(phi0);
 
 % initialise return vector
 phi = zeros(npulse,1);
 
-% different phase increments for every other TR
-increment = mod(phi0*scale_firsttr_secondtr(1), 20*pi);
-phi(1) = increment;
-for k=2:npulse
-    increment = mod(increment + phi0*scale_firsttr_secondtr(mod(k-1,2)+1), 20*pi);
+RFSpoilIncrement = 0;
+RFSpoilPhase = 0;
+phase = 0;
+for n=1:npulse
+    if mod(n,2)
+	    % First (shorter) TR, spoil less ala Nehrke
+		RFSpoilIncrement = RFSpoilIncrement + phi0*TR1/TR2;
+    else
+	    RFSpoilIncrement = RFSpoilIncrement + phi0;
+    end
+	RFSpoilPhase = mod(RFSpoilPhase + RFSpoilIncrement, 20*pi);
 
-    phi(k) = mod(phi(k-1) + increment, 20*pi);
+	RFSpoilIncrement = mod(RFSpoilIncrement, 20*pi);
+
+	phase = phase + RFSpoilPhase;
+    phi(n) = phase;
 end
 
 end
