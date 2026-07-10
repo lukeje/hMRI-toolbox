@@ -14,7 +14,6 @@ phi = zeros(npulse,1);
 
 RFSpoilIncrement = 0;
 RFSpoilPhase = 0;
-phase = 0;
 for n=1:npulse
     if mod(n,2)
 	    % First (shorter) TR, spoil less ala Nehrke
@@ -26,8 +25,7 @@ for n=1:npulse
 
 	RFSpoilIncrement = mod(RFSpoilIncrement, 20*pi);
 
-	phase = phase + RFSpoilPhase;
-    phi(n) = phase;
+    phi(n) = RFSpoilPhase;
 end
 
 end

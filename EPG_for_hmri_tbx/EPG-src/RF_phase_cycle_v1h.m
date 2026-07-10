@@ -39,7 +39,6 @@ RFSpoilMult1 = 0;
 RFSpoilMult2 = 0;
 
 phi = zeros(npulse,1);
-phase0 = 0;
 for n=1:npulse
     RFSpoilMult1 = RFSpoilMult1 + N;
 	RFSpoilMult2 = RFSpoilMult2 + 1;
@@ -51,8 +50,7 @@ for n=1:npulse
 
 	RFSpoilPhase = wrapTo2Pi(RFSpoilMult*RFSpoilIncrement);
 
-    phase0 = phase0 + RFSpoilPhase;
-    phi(n) = phase0;
+    phi(n) = RFSpoilPhase;
 end
 
 end
