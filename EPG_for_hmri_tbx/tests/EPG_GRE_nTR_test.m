@@ -1,4 +1,3 @@
-
 classdef EPG_GRE_nTR_test < matlab.unittest.TestCase
     properties (TestParameter)
         % Augment TestParameter with parameters over which tests will run,
@@ -32,7 +31,7 @@ classdef EPG_GRE_nTR_test < matlab.unittest.TestCase
             naxis = EPG_GRE_nTR(theta,phi,TR,T1,T2, 'diff',GdiffAxes);
             ref   = EPG_GRE_nTR(theta,phi,TR,T1,T2, 'diff',GdiffRef);
 
-            assertEqual(testCase, naxis, ref, 'AbsTol',1e-12);
+            testCase.assertEqual(naxis, ref, 'AbsTol',1e-12);
         end
 
         function twogradaxisfractionsTest(testCase,fraction)
@@ -58,7 +57,7 @@ classdef EPG_GRE_nTR_test < matlab.unittest.TestCase
             naxis = EPG_GRE_nTR(theta,phi,TR,T1,T2, 'diff',GdiffAxes);
             ref   = EPG_GRE_nTR(theta,phi,TR,T1,T2, 'diff',GdiffRef);
 
-            assertEqual(testCase, naxis, ref, 'AbsTol',1e-12);
+            testCase.assertEqual(naxis, ref, 'AbsTol',1e-12);
         end
 
         function EPG_GRE_2TRTest(testCase)
@@ -79,7 +78,7 @@ classdef EPG_GRE_nTR_test < matlab.unittest.TestCase
             naxis = EPG_GRE_nTR(theta,phi,TR(1),T1,T2, 'diff',Gdiff(1));
             ref   = EPG_GRE_nTR(theta,phi,TR,   T1,T2, 'diff',Gdiff);
 
-            assertEqual(testCase, naxis, ref);
+            testCase.assertEqual(naxis, ref);
         end
 
         function EPG_GRE_nTRvsEPG_GRETest(testCase)
@@ -101,7 +100,7 @@ classdef EPG_GRE_nTR_test < matlab.unittest.TestCase
             naxis = EPG_GRE_nTR(theta,phi,TR,T1,T2, 'diff',Gdiff);
             ref   = EPG_GRE(    theta,phi,TR,T1,T2, 'diff',Gdiff);
 
-            assertEqual(testCase, naxis, ref);
+            testCase.assertEqual(naxis, ref);
         end
 
         function EPG_GRE_2TRvsEPG_GRETest(testCase)
@@ -124,7 +123,7 @@ classdef EPG_GRE_nTR_test < matlab.unittest.TestCase
             naxis = EPG_GRE_nTR(theta,phi,TR,   T1,T2, 'diff',Gdiff);
             ref   = EPG_GRE(    theta,phi,TR(1),T1,T2, 'diff',Gdiff(1));
 
-            assertEqual(testCase, naxis, ref);
+            testCase.assertEqual(naxis, ref);
         end
 
         function twoTRtwogradaxisTest(testCase)
@@ -153,7 +152,7 @@ classdef EPG_GRE_nTR_test < matlab.unittest.TestCase
             naxis = EPG_GRE_nTR(theta,phi,TR,T1,T2, 'diff',GdiffAxes);
             ref   = EPG_GRE_nTR(theta,phi,TR,T1,T2, 'diff',GdiffRef);
 
-            assertEqual(testCase, naxis, ref, 'AbsTol',1e-12);
+            testCase.assertEqual(naxis, ref, 'AbsTol',1e-12);
         end
         
     end
