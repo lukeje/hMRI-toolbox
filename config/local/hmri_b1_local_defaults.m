@@ -48,6 +48,7 @@ global hmri_def
 % appropriate data handling and processing.
 % See examples of local customization in the hMRI-Toolbox\local directory.
 
+
 % 'i3D_AFI'
 hmri_def.b1map.i3D_AFI.b1type = 'i3D_AFI';
 hmri_def.b1map.i3D_AFI.b1avail = true;
@@ -71,6 +72,7 @@ hmri_def.b1map.i3D_AFI.b1mask.thresh = 0.5;
 hmri_def.b1map.i3D_AFI.b1proc.B1FWHM = 8; % For smoothing of B1 map. FWHM in mm; set to 0 to disable smoothing
 hmri_def.b1map.i3D_AFI.b1proc.match_vdm = true; % Whether to register voxel displacement map from B0 to B1 map
 hmri_def.b1map.i3D_AFI.b1proc.b0maskbrain = false;
+hmri_def.b1map.i3D_AFI.b1proc.B1filtertype = 'gaussian'; % For smoothing of B1 map. 'gaussian' or 'median' filter
 
 % 'DAM'
 hmri_def.b1map.DAM.b1type = 'DAM';
@@ -83,6 +85,7 @@ hmri_def.b1map.DAM.b1mask.nerode = 2;
 hmri_def.b1map.DAM.b1mask.ndilate = 4;
 hmri_def.b1map.DAM.b1mask.thresh = 0.5;
 hmri_def.b1map.DAM.b1proc.B1FWHM = 8; % For smoothing of B1 map. FWHM in mm; set to 0 to disable smoothing
+hmri_def.b1map.DAM.b1proc.B1filtertype = 'gaussian'; % For smoothing of B1 map. 'gaussian' or 'median' filter
 
 % 'pre_processed_B1'
 hmri_def.b1map.pre_processed_B1.b1type = 'pre_processed_B1';
@@ -94,6 +97,7 @@ hmri_def.b1map.pre_processed_B1.b1mask.nerode = 2;
 hmri_def.b1map.pre_processed_B1.b1mask.ndilate = 4;
 hmri_def.b1map.pre_processed_B1.b1mask.thresh = 0.5;
 hmri_def.b1map.pre_processed_B1.b1proc.B1FWHM = 0; % For smoothing of B1 map. FWHM in mm; set to 0 to disable smoothing
+hmri_def.b1map.pre_processed_B1.b1proc.B1filtertype = 'gaussian'; % For smoothing of B1 map. 'gaussian' or 'median' filter
 
 % 'no_B1_correction'
 hmri_def.b1map.no_B1_correction.b1type = 'no_B1_correction';
@@ -122,6 +126,7 @@ hmri_def.b1map.i3D_EPI.b1proc.SDTHRESH = 5;
 hmri_def.b1map.i3D_EPI.b1proc.ERODEB1 = 1;
 hmri_def.b1map.i3D_EPI.b1proc.PADB1 = 3 ;
 hmri_def.b1map.i3D_EPI.b1proc.B1FWHM = 8; % For smoothing of B1 map. FWHM in mm - i.e. it is divided by voxel resolution to get FWHM in voxels
+hmri_def.b1map.i3D_EPI.b1proc.B1filtertype = 'gaussian'; % For smoothing of B1 map. 'gaussian' or 'median' filter
 hmri_def.b1map.i3D_EPI.b1proc.match_vdm = 1;
 hmri_def.b1map.i3D_EPI.b1proc.b0maskbrain = 1;
 % b1-validation
@@ -148,6 +153,7 @@ hmri_def.b1map.tfl_b1_map.b1mask.nerode = 2;
 hmri_def.b1map.tfl_b1_map.b1mask.ndilate = 4;
 hmri_def.b1map.tfl_b1_map.b1mask.thresh = 0.5;
 hmri_def.b1map.tfl_b1_map.b1proc.B1FWHM = 8; % For smoothing of B1 map. FWHM in mm; set to 0 to disable smoothing
+hmri_def.b1map.tfl_b1_map.b1proc.B1filtertype = 'gaussian'; % For smoothing of B1 map. 'gaussian' or 'median' filter
 
 % 'rf_map'
 hmri_def.b1map.rf_map.b1type = 'rf_map';
@@ -159,3 +165,4 @@ hmri_def.b1map.rf_map.b1mask.nerode = 2;
 hmri_def.b1map.rf_map.b1mask.ndilate = 4;
 hmri_def.b1map.rf_map.b1mask.thresh = 0.5;
 hmri_def.b1map.rf_map.b1proc.B1FWHM = 8; % For smoothing of B1 map. FWHM in mm; set to 0 to disable smoothing
+hmri_def.b1map.rf_map.b1proc.B1filtertype = 'gaussian'; % For smoothing of B1 map. 'gaussian' or 'median' filter
